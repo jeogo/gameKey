@@ -6,6 +6,7 @@
     "start": "ts-node src/index.ts",
     "dev": "nodemon src/index.ts",
     "build": "tsc",
+    "setup": "npm install && npm run build",
     "start:prod": "node dist/index.js",
     "test": "jest"
   },
