@@ -249,7 +249,7 @@ router.post(
   express.raw({ type: "application/json" }),
   async (req: Request, res: Response):Promise<any> => {
     try {
-      const webhookSecret = process.env.PAYPAL_WEBHOOK_ID;
+      const webhookSecret = process.env.PAYPAL_WEBHOOK_ID; // This will use the specific webhook ID for this endpoint
 
       // Need to verify the webhook signature if in production
       if (process.env.NODE_ENV === "production" && webhookSecret) {

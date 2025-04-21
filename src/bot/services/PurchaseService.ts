@@ -22,7 +22,7 @@ export class PurchaseService {
     quantity: number = 1
   ): Promise<boolean> {
     try {
-      // التحقق من وجود المنتج وتوفره
+      // Check if product exists and is available
       const product = await ProductRepository.findProductById(productId);
       
       if (!product) {
@@ -35,7 +35,7 @@ export class PurchaseService {
         return false;
       }
       
-      // التحقق من وجود المستخدم في السياق
+      // Check if user exists in context
       if (!ctx.from?.id) {
         await ctx.reply("Unable to identify user. Please try again.");
         return false;
@@ -43,22 +43,22 @@ export class PurchaseService {
       
       const userId = ctx.from.id.toString();
       
-      // التحقق من وجود كمية كافية (للمحتوى الرقمي)
+      // Check if sufficient quantity is available
       if (product.isAvailable && (!product.digitalContent || product.digitalContent.length < quantity)) {
         await ctx.reply(`Sorry, we don't have enough of this product in stock right now. Currently available: ${product.digitalContent?.length || 0}. Please try again with a smaller quantity or contact support.`);
         return false;
       }
       
-      // حساب المبلغ الإجمالي
+      // Calculate total amount
       const totalAmount = quantity * product.price;
       
-      // إنشاء طلب الدفع
+      // Create payment request
       const paymentOptions = {
         amount: totalAmount,
         currency: "USD",
         description: `Purchase of ${product.name}`,
-        successUrl: process.env.PAYPAL_SUCCESS_URL || "https://example.com/success",
-        cancelUrl: process.env.PAYPAL_CANCEL_URL || "https://example.com/cancel",
+        successUrl: process.env.PAYPAL_SUCCESS_URL || "https://gamekey.onrender.com/payment/success",
+        cancelUrl: process.env.PAYPAL_CANCEL_URL || "https://gamekey.onrender.com/payment/cancel",
         metadata: {
           userId,
           productId,
@@ -195,87 +195,7 @@ Use /orders to view all your orders and their status.
     }
   }
   
-  /**
-   * Show order confirmation with digital content delivery
-   */
-  private static async showOrderConfirmationWithDigitalContent(
-    ctx: MyContext, 
-    orderId: string,
-    digitalContent: string[]
-  ): Promise<void> {
-    try {
-      const order = await OrderRepository.findOrderById(orderId);
-      
-      if (!order) {
-        await ctx.reply("Order not found. Please try again.");
-        return;
-      }
-      
-      const product = await ProductRepository.findProductById(order.productId);
-      
-      if (!product) {
-        await ctx.reply("Product information not available. Your order has been placed.");
-        return;
-      }
-      
-      // دمج رسالة التأكيد والمحتوى الرقمي في رسالة واحدة
-      let message = `
-🎮 *ORDER CONFIRMATION - COMPLETED*
 
-✅ *#${order._id?.slice(-6)}*
-
-*Product:* ${product.name}
-*Quantity:* ${order.quantity}
-*Price:* $${order.unitPrice.toFixed(2)} each
-*Total:* $${order.totalAmount.toFixed(2)}
-
-`;
-      
-      // إضافة قسم المحتوى الرقمي
-      message += `
-🔐 *YOUR DIGITAL PRODUCT DETAILS*
-
-Here are your login details for ${product.name}:
-
-`;
-      
-      // إضافة كل عنصر من عناصر المحتوى الرقمي
-      digitalContent.forEach((item, index) => {
-        try {
-          // محاولة تقسيم البيانات إلى صيغة بريد إلكتروني:كلمة مرور
-          const [email, password] = item.split(':');
-          message += `*Item ${index + 1}:*\n`;
-          message += `Email: \`${email}\`\n`;
-          message += `Password: \`${password}\`\n\n`;
-        } catch (e) {
-          // استخدام صيغة احتياطية إذا فشل التقسيم
-          message += `*Item ${index + 1}:* \`${item}\`\n\n`;
-        }
-      });
-      
-      // إرسال كرسالة واحدة
-      await ctx.reply(message, {
-        parse_mode: "Markdown",
-        reply_markup: KeyboardFactory.backToMain()
-      });
-      
-      // تخزين المحتوى الرقمي في سجل حالة الطلب للرجوع إليه لاحقًا
-      const digitalContentString = digitalContent.join(',');
-      await OrderRepository.updateOrderStatus(
-        orderId, 
-        "completed", 
-        `Digital product delivered automatically. Content: ${digitalContentString}`
-      );
-      
-    } catch (error) {
-      console.error("Error delivering digital content:", error);
-      await ctx.reply(
-        "Your order has been processed, but there was an issue delivering your digital content. " +
-        "Please contact support with your order number for assistance."
-      );
-    }
-  }
-  
   /**
    * Complete an order (mark as fulfilled)
    */
@@ -388,38 +308,38 @@ Here are your login details for ${product.name}:
         return false;
       }
       
-      // التحقق من توفر محتوى رقمي كافٍ
+      // Check if sufficient digital content is available
       if (!product.digitalContent || product.digitalContent.length < order.quantity) {
         console.log("Not enough digital content for preorder:", order.productId);
         return false;
       }
       
-      // الحصول على المحتوى الرقمي للتسليم
+      // Get digital content for delivery
       const contentToDeliver = product.digitalContent.slice(0, order.quantity);
       
-      // تخزين معلومات المخزون قبل التحديث
+      // Store inventory information before update
       const inventoryBefore = product.digitalContent.length;
       
-      // تحديث المحتوى الرقمي للمنتج
+      // Update product's digital content
       const updatedDigitalContent = product.digitalContent.slice(order.quantity);
       await ProductRepository.updateProduct(product._id!, {
         digitalContent: updatedDigitalContent,
         isAvailable: updatedDigitalContent.length > 0
       });
       
-      // تخزين معلومات المخزون بعد التحديث
+      // Store inventory information after update
       const inventoryAfter = updatedDigitalContent.length;
       
-      // وضع علامة على الطلب كمكتمل
+      // Mark order as complete
       await OrderRepository.updateOrderStatus(
         orderId,
         "completed",
         "Preorder fulfilled with digital content"
       );
       
-      // محاولة إخطار المستخدم بأن طلبه المسبق جاهز
+      // Attempt to notify user that their preorder is ready
       try {
-        // إرسال رسالة واحدة مدمجة بالطلب والمحتوى
+        // Send a single combined message with order and content
         let message = `
 🎮 *YOUR PRE-ORDER IS READY!*
 
@@ -438,16 +358,16 @@ Here are your login details for ${product.name}:
 
 `;
 
-        // إضافة كل عنصر من عناصر المحتوى الرقمي
+        // Add each digital content item
         contentToDeliver.forEach((item, index) => {
           try {
-            // محاولة تقسيم البيانات إلى صيغة بريد إلكتروني:كلمة مرور
+            // Try to split data into email:password format
             const [email, password] = item.split(':');
             message += `*Item ${index + 1}:*\n`;
             message += `Email: \`${email}\`\n`;
             message += `Password: \`${password}\`\n\n`;
           } catch (e) {
-            // استخدام صيغة احتياطية إذا فشل التقسيم
+            // Use fallback format if splitting fails
             message += `*Item ${index + 1}:* \`${item}\`\n\n`;
           }
         });
@@ -456,8 +376,8 @@ Here are your login details for ${product.name}:
           parse_mode: "Markdown",
         });
         
-        // تخزين المحتوى الرقمي في سجل حالة الطلب بنفس النسق
-        // هذا يضمن أننا يمكن أن نستعيده بنفس الطريقة في كل من حالات الشراء والطلب المسبق
+        // Store digital content in order status with the same format
+        // This ensures we can retrieve it the same way in both purchase and preorder cases
         const digitalContentString = contentToDeliver.join(',');
         await OrderRepository.updateOrderStatus(
           orderId, 
@@ -465,7 +385,7 @@ Here are your login details for ${product.name}:
           `Preorder fulfilled with digital content. Content: ${digitalContentString}`
         );
         
-        // إخطار المشرف عن اكتمال الطلب المسبق مع تفاصيل المحتوى
+        // Notify admin about preorder completion with content details
         await NotificationService.sendPreorderCompletionNotification(
           parseInt(order.userId),
           {
