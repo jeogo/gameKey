@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@grammyjs/storage-mongodb": "^2.5.1",
+    "@nowpaymentsio/nowpayments-api-js": "^1.0.5",
     "@paypal/paypal-server-sdk": "^1.0.0",
     "axios": "^1.4.0",
     "cors": "^2.8.5",

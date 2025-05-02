@@ -41,19 +41,6 @@ export async function findTransactionById(id: string): Promise<IPaymentTransacti
   }
 }
 
-// Find transaction by PayPal order ID
-export async function findTransactionByPaypalOrderId(paypalOrderId: string): Promise<IPaymentTransaction | null> {
-  try {
-    await connectToDatabase();
-    const collection = getDb().collection('payment_transactions');
-    const transaction = await collection.findOne({ paypalOrderId });
-    return mapTransaction(transaction);
-  } catch (error) {
-    console.error('Error finding transaction by PayPal order ID:', error);
-    return null;
-  }
-}
-
 // Find transaction by provider transaction ID (NOWPayments payment_id)
 export async function findTransactionByProviderId(providerTransactionId: string): Promise<IPaymentTransaction | null> {
   try {
@@ -105,43 +92,6 @@ export async function updateTransactionStatus(
     return mapTransaction(result);
   } catch (error) {
     console.error('Error updating transaction status:', error);
-    return null;
-  }
-}
-
-// Update transaction with PayPal data
-export async function updateTransactionWithPaypalData(
-  id: string,
-  paypalData: {
-    paypalOrderId?: string;
-    paypalCaptureId?: string;
-    status?: IPaymentTransaction['status'];
-  }
-): Promise<IPaymentTransaction | null> {
-  try {
-    await connectToDatabase();
-    const collection = getDb().collection('payment_transactions');
-    const objectId = new ObjectId(id);
-    const now = new Date();
-    
-    const updateData: any = {
-      ...paypalData,
-      updatedAt: now
-    };
-    
-    if (paypalData.status === 'completed') {
-      updateData.completedAt = now;
-    }
-    
-    const result = await collection.findOneAndUpdate(
-      { _id: objectId },
-      { $set: updateData },
-      { returnDocument: 'after' }
-    );
-    
-    return mapTransaction(result);
-  } catch (error) {
-    console.error('Error updating transaction with PayPal data:', error);
     return null;
   }
 }

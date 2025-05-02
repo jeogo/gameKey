@@ -201,21 +201,17 @@ export async function checkPaymentStatus(id: string): Promise<IPaymentTransactio
     if (!transaction) {
       return null;
     }
-    
-    // Only check status for pending PayPal transactions
-    if (transaction.paymentProvider === 'paypal' && 
-        transaction.status === 'pending' && 
-        transaction.paypalOrderId) {
-      
-      // Check PayPal order status directly using PaymentProcessor
-      const paymentStatus = await paymentProcessor.checkPayPalPaymentStatus(transaction.paypalOrderId);
-      
+    // تحقق فقط من حالة معاملات NowPayments (crypto)
+    if (transaction.paymentProvider === 'crypto' &&
+        transaction.status === 'pending' &&
+        transaction.providerTransactionId) {
+      // تحقق من حالة الدفع عبر NowPayments
+      const paymentStatus = await paymentProcessor.checkPaymentStatus(transaction.providerTransactionId);
       if (paymentStatus === 'completed') {
         // Update transaction as completed
         return await PaymentRepository.updateTransactionStatus(id, 'completed');
       }
     }
-    
     return transaction;
   } catch (error) {
     console.error(`Error checking payment status for transaction ${id}:`, error);

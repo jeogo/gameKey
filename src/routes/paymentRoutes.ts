@@ -3,6 +3,8 @@ import { paymentProcessor } from "../services/PaymentProcessor";
 import * as PaymentRepository from "../repositories/PaymentRepository";
 import * as PaymentController from "../controllers/PaymentController";
 import * as OrderRepository from "../repositories/OrderRepository";
+import { processPaymentWebhook } from "../bot/handlers/paymentHandlers";
+import { NowPaymentsService } from "../services/NowPaymentsService";
 
 const router = express.Router();
 
@@ -178,125 +180,43 @@ router.get("/stats/summary", async (req: Request, res: Response) => {
   }
 });
 
-// Handle PayPal return URL
-router.get(
-  "/paypal-return",
-  async (req: Request, res: Response): Promise<any> => {
-    try {
-      const { token } = req.query;
+// Handle payment success URL
+router.get("/success", (req: Request, res: Response): void => {
+  res.status(200).json({
+    message: "Payment received. You can now return to Telegram.",
+  });
+});
 
-      if (!token) {
-        return res.status(400).json({ message: "Missing PayPal token" });
-      }
-
-      // Get transaction by PayPal order ID
-      const transaction =
-        await PaymentRepository.findTransactionByPaypalOrderId(token as string);
-
-      if (!transaction) {
-        return res.status(404).json({ message: "Transaction not found" });
-      }
-
-      try {
-        // Use PaymentProcessor instead of paypalService
-        const captureResult = await paymentProcessor.capturePayPalPayment(token as string);
-        
-        if (captureResult.status === "completed") {
-          // Update transaction
-          await PaymentRepository.updateTransactionWithPaypalData(
-            transaction._id!,
-            {
-              paypalCaptureId: captureResult.externalId,
-              status: "completed",
-            }
-          );
-          
-          // Update order status
-          await OrderRepository.updateOrderStatus(
-            transaction.orderId,
-            "completed",
-            "Payment completed via PayPal"
-          );
-        }
-      } catch (err) {
-        console.error("Error capturing PayPal payment:", err);
-        // Don't reject the response, still show success to user
-      }
-
-      return res
-        .status(200)
-        .json({ message: "Payment received. You can now return to Telegram." });
-    } catch (error) {
-      console.error("Error processing PayPal return:", error);
-      return res
-        .status(500)
-        .json({ message: "An error occurred while processing your payment" });
-    }
-  }
-);
-
-// Handle PayPal cancel URL
-router.get("/paypal-cancel", (_req: Request, res: Response): void => {
+// Handle payment cancel URL
+router.get("/cancel", (_req: Request, res: Response): void => {
   res.status(200).json({
     message:
       "Payment cancelled. Please return to Telegram to try again or choose another payment method.",
   });
 });
 
-// Handle PayPal webhook notifications
+// Handle NowPayments webhook notifications
 router.post(
-  "/paypal-webhook",
-  express.raw({ type: "application/json" }),
-  async (req: Request, res: Response):Promise<any> => {
+  "/now-webhook",
+  express.json(),
+  async (req: Request, res: Response): Promise<any> => {
     try {
-      const webhookSecret = process.env.PAYPAL_WEBHOOK_ID; // This will use the specific webhook ID for this endpoint
-
-      // Need to verify the webhook signature if in production
-      if (process.env.NODE_ENV === "production" && webhookSecret) {
-        // Verify webhook signature using PaymentProcessor
-        const isValid = paymentProcessor.verifyPaypalWebhook(req.headers as Record<string, string>, req.body);
-        if (!isValid) {
-          return res.status(403).send('Invalid webhook signature');
-        }
+      // Validar el webhook
+      if (!NowPaymentsService.validateWebhook(req)) {
+        return res.status(403).send("Invalid webhook");
       }
 
-      // Parse the webhook payload
-      const event = JSON.parse(req.body.toString());
-
-      // Process webhook with PaymentProcessor
-      const transactionData = paymentProcessor.processPayPalWebhook(event);
-
-      // Handle different event types
-      if (event.event_type === "PAYMENT.CAPTURE.COMPLETED" && transactionData) {
-        const resource = event.resource;
-        const orderId = resource.supplementary_data?.related_ids?.order_id;
-
-        if (orderId) {
-          // Find transaction by PayPal order ID
-          const transaction = await PaymentRepository.findTransactionByPaypalOrderId(orderId);
-          if (transaction) {
-            // Update transaction status
-            await PaymentRepository.updateTransactionWithPaypalData(
-              transaction._id!,
-              {
-                paypalCaptureId: resource.id,
-                status: "completed"
-              }
-            );
-            
-            // Update order status
-            await OrderRepository.updateOrderStatus(
-              transaction.orderId,
-              "completed",
-              "Payment completed via PayPal webhook"
-            );
-          }
-        }
+      const event = req.body;
+      // Procesar el webhook
+      const result = await processPaymentWebhook("nowpayments", event);
+      
+      if (result) {
+        return res.status(200).send("Webhook processed");
+      } else {
+        return res.status(404).send("Transaction not found or not processed");
       }
-
-      res.status(200).send("Webhook received");
     } catch (error) {
-      console.error("Error handling PayPal webhook:", error);
+      console.error("Error handling NowPayments webhook:", error);
       res.status(500).send("Error processing webhook");
     }
   }

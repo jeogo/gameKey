@@ -54,11 +54,13 @@ export class PurchaseService {
       
       // Create payment request
       const paymentOptions = {
-        amount: totalAmount,
-        currency: "USD",
-        description: `Purchase of ${product.name}`,
-        successUrl: process.env.PAYPAL_SUCCESS_URL || "https://gamekey.onrender.com/payment/success",
-        cancelUrl: process.env.PAYPAL_CANCEL_URL || "https://gamekey.onrender.com/payment/cancel",
+        amount: product.price * quantity,
+        currency: 'USD',
+        description: product.name,
+        order_id: `${userId}_${Date.now()}`,
+        ipn_callback_url: process.env.NOWPAYMENTS_WEBHOOK_URL || "https://gamekey.onrender.com/payment/now-webhook",
+        success_url: process.env.NOWPAYMENTS_SUCCESS_URL || "https://gamekey.onrender.com/payment/success",
+        cancel_url: process.env.NOWPAYMENTS_CANCEL_URL || "https://gamekey.onrender.com/payment/cancel",
         metadata: {
           userId,
           productId,
@@ -67,7 +69,6 @@ export class PurchaseService {
           isPreorder: !product.isAvailable
         }
       };
-      
       const paymentTx = await paymentProcessor.createPayment(paymentOptions);
 
       // Save transaction in DB (no order creation yet)
@@ -75,7 +76,7 @@ export class PurchaseService {
         ...paymentTx,
         userId,
         orderId: "", // Will be filled in after payment
-        paymentProvider: "paypal",
+        paymentProvider: "crypto",
         amount: paymentTx.amount,
         currency: paymentTx.currency,
         status: "pending",

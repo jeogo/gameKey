@@ -72,7 +72,7 @@ export class KeyboardFactory {
     
     for (let i = 0; i < maxToDisplay; i++) {
       const product = products[i];
-      keyboard.text(`🎮 ${product.name}`, `product_${product._id}`).row();
+      keyboard.text(` ${product.name}`, `product_${product._id}`).row();
     }
     
     // Add navigation if needed
