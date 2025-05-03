@@ -6,13 +6,13 @@
 export const messages = {
   // Welcome and registration messages
   welcome: `
-Welcome to our Digital Store! 🎮🎬
+Welcome to our Digital Store!
 
 You can browse:
-• 🎮 Digital Games
-• 🎬 Subscription Services
-• 📦 Track your orders
-• 💬 Contact support
+• Digital Games
+• Subscription Services
+• Track your orders
+• Contact support
 
 *How to use:*
 1. Choose a category
@@ -23,7 +23,7 @@ You can browse:
 `,
 
   terms: `
-Welcome to our Digital Store! 🎮🎬
+Welcome to our Digital Store!
 
 *Terms and Conditions:*
 • You must be 18 years or older to use this service
@@ -37,7 +37,7 @@ Do you agree to these terms and conditions?
   pendingApproval: `Your registration is pending approval. Please wait for admin confirmation.`,
   
   registrationReceived: `
-Your registration has been received! ✅
+Your registration has been received!
 
 An administrator will review your request shortly.
 You will be notified once your account is approved.
@@ -55,7 +55,7 @@ For more information, please contact support.
 `,
 
   registrationApproved: `
-Good news! Your account has been approved ✅
+Good news! Your account has been approved
 
 You now have full access to our digital store.
 Use the menu below to start shopping.

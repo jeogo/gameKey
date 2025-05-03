@@ -1,10 +1,8 @@
 import express, { Request, Response } from "express";
-import { paymentProcessor } from "../services/PaymentProcessor";
+import { nowPaymentsService } from "../services/NowPaymentsService";
 import * as PaymentRepository from "../repositories/PaymentRepository";
 import * as PaymentController from "../controllers/PaymentController";
 import * as OrderRepository from "../repositories/OrderRepository";
-import { processPaymentWebhook } from "../bot/handlers/paymentHandlers";
-import { NowPaymentsService } from "../services/NowPaymentsService";
 
 const router = express.Router();
 
@@ -180,43 +178,70 @@ router.get("/stats/summary", async (req: Request, res: Response) => {
   }
 });
 
-// Handle payment success URL
-router.get("/success", (req: Request, res: Response): void => {
-  res.status(200).json({
-    message: "Payment received. You can now return to Telegram.",
-  });
+// NOWPayments Return URLs
+router.get("/nowpayments-return", async (req: Request, res: Response) => {
+  try {
+    const transactionId = req.query.txId as string;
+    if (transactionId) {
+      await PaymentController.nowpaymentsSuccess(req, res);
+    } else {
+      res.status(200).send('Payment completed! You can close this window and return to the bot.');
+    }
+  } catch (error) {
+    console.error("Error handling NOWPayments return:", error);
+    res.status(500).send("Error processing payment return");
+  }
 });
 
-// Handle payment cancel URL
-router.get("/cancel", (_req: Request, res: Response): void => {
-  res.status(200).json({
-    message:
-      "Payment cancelled. Please return to Telegram to try again or choose another payment method.",
-  });
+router.get("/nowpayments-cancel", async (req: Request, res: Response) => {
+  try {
+    res.status(200).send('Payment was cancelled. You can close this window and return to the bot.');
+  } catch (error) {
+    console.error("Error handling NOWPayments cancel:", error);
+    res.status(500).send("Error processing payment cancellation");
+  }
 });
 
-// Handle NowPayments webhook notifications
+// Add NOWPayments webhook endpoint
 router.post(
-  "/now-webhook",
+  "/nowpayments-webhook",
   express.json(),
   async (req: Request, res: Response): Promise<any> => {
     try {
-      // Validar el webhook
-      if (!NowPaymentsService.validateWebhook(req)) {
-        return res.status(403).send("Invalid webhook");
-      }
-
+      console.log("NOWPayments webhook received:", req.body);
       const event = req.body;
-      // Procesar el webhook
-      const result = await processPaymentWebhook("nowpayments", event);
       
-      if (result) {
-        return res.status(200).send("Webhook processed");
-      } else {
-        return res.status(404).send("Transaction not found or not processed");
+      if (!event || !event.payment_id) {
+        console.log("Invalid webhook payload:", event);
+        return res.status(400).send("Invalid webhook payload");
       }
+      
+      const transactionData = nowPaymentsService.processWebhook(event);
+      if (!transactionData) {
+        return res.status(400).send("Could not process webhook data");
+      }
+      
+      // Find existing transaction by external ID
+      const existingTx = await PaymentRepository.findTransactionByExternalId(event.payment_id);
+      
+      if (existingTx) {
+        // Update transaction status
+        await PaymentRepository.updateTransactionStatus(existingTx._id!, transactionData.status, {
+          webhookData: event
+        });
+        
+        // Handle payment completion
+        if (transactionData.status === 'completed') {
+          const { handlePaymentSuccess } = require('../bot/handlers/paymentHandlers');
+          await handlePaymentSuccess(existingTx._id!);
+        }
+      } else {
+        console.log("Transaction not found for payment_id:", event.payment_id);
+      }
+      
+      res.status(200).send("Webhook processed successfully");
     } catch (error) {
-      console.error("Error handling NowPayments webhook:", error);
+      console.error("Error handling NOWPayments webhook:", error);
       res.status(500).send("Error processing webhook");
     }
   }

@@ -41,6 +41,19 @@ export async function findTransactionById(id: string): Promise<IPaymentTransacti
   }
 }
 
+// Find transaction by external ID
+export async function findTransactionByExternalId(externalId: string): Promise<IPaymentTransaction | null> {
+  try {
+    await connectToDatabase();
+    const collection = getDb().collection('payment_transactions');
+    const transaction = await collection.findOne({ externalId });
+    return mapTransaction(transaction);
+  } catch (error) {
+    console.error('Error finding transaction by external ID:', error);
+    return null;
+  }
+}
+
 // Find transaction by provider transaction ID (NOWPayments payment_id)
 export async function findTransactionByProviderId(providerTransactionId: string): Promise<IPaymentTransaction | null> {
   try {

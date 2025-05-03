@@ -23,6 +23,7 @@ export interface SessionData extends ISession {
   lastOrderId?: string;
   userId?: string;
   tempData: Record<string, any>;
+  payCurrency?: string;
 }
 
 // Initial session data creator

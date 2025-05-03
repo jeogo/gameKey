@@ -4,7 +4,7 @@ import * as OrderRepository from "../../repositories/OrderRepository";
 import KeyboardFactory from "../keyboards";
 import { NotificationService } from "./NotificationService";
 import { bot } from "../../bot";
-import { paymentProcessor } from "../../services/PaymentProcessor";
+import { nowPaymentsService } from "../../services/NowPaymentsService";
 import * as PaymentRepository from "../../repositories/PaymentRepository";
 import { IPaymentTransaction } from "../../models/PaymentTransaction";
 
@@ -52,31 +52,33 @@ export class PurchaseService {
       // Calculate total amount
       const totalAmount = quantity * product.price;
       
+      // Determine payCurrency (let user select, or default to 'usdt')
+      const payCurrency = ctx.session?.payCurrency || 'usdt';
       // Create payment request
       const paymentOptions = {
-        amount: product.price * quantity,
-        currency: 'USD',
-        description: product.name,
-        order_id: `${userId}_${Date.now()}`,
-        ipn_callback_url: process.env.NOWPAYMENTS_WEBHOOK_URL || "https://gamekey.onrender.com/payment/now-webhook",
-        success_url: process.env.NOWPAYMENTS_SUCCESS_URL || "https://gamekey.onrender.com/payment/success",
-        cancel_url: process.env.NOWPAYMENTS_CANCEL_URL || "https://gamekey.onrender.com/payment/cancel",
+        amount: totalAmount,
+        currency: "USD",
+        description: `Purchase of ${product.name}`,
+        successUrl: process.env.NOWPAYMENTS_SUCCESS_URL || "https://gamekey.onrender.com/payment/success",
+        cancelUrl: process.env.NOWPAYMENTS_CANCEL_URL || "https://gamekey.onrender.com/payment/cancel",
         metadata: {
           userId,
           productId,
           quantity,
           productPrice: product.price,
           isPreorder: !product.isAvailable
-        }
+        },
+        payCurrency // pass to NowPaymentsService
       };
-      const paymentTx = await paymentProcessor.createPayment(paymentOptions);
+      
+      const paymentTx = await nowPaymentsService.createPayment(paymentOptions);
 
       // Save transaction in DB (no order creation yet)
       const savedTx = await PaymentRepository.createTransaction({
         ...paymentTx,
         userId,
         orderId: "", // Will be filled in after payment
-        paymentProvider: "crypto",
+        paymentProvider: "nowpayments",
         amount: paymentTx.amount,
         currency: paymentTx.currency,
         status: "pending",

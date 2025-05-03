@@ -12,9 +12,9 @@ export class KeyboardFactory {
    */
   static terms(): InlineKeyboard {
     return new InlineKeyboard()
-      .text("✅ I Accept the Terms", "accept_terms")
+      .text("I Accept the Terms", "accept_terms")
       .row()
-      .text("❌ I Decline", "decline_terms");
+      .text("I Decline", "decline_terms");
   }
   static custom(buttons: Array<Array<{ text: string, callback_data: string }>>) {
     return {
@@ -25,16 +25,16 @@ export class KeyboardFactory {
    */
   static support(): InlineKeyboard {
     return new InlineKeyboard()
-      .text("📞 Contact Support", "contact_support")
+      .text("Contact Support", "contact_support")
       .row()
-      .text("🔙 Back to Main Menu", "main_menu");
+      .text("Back to Main Menu", "main_menu");
   }
   
   /**
    * Registration keyboard
    */
   static register(): InlineKeyboard {
-    return new InlineKeyboard().text("🔄 Register", "register");
+    return new InlineKeyboard().text("Register", "register");
   }
 
   /**
@@ -42,8 +42,8 @@ export class KeyboardFactory {
    */
   static adminApproval(userId: number): InlineKeyboard {
     return new InlineKeyboard()
-      .text("✅ Approve", `approve_user_${userId}`)
-      .text("❌ Decline", `decline_user_${userId}`);
+      .text("Approve", `approve_user_${userId}`)
+      .text("Decline", `decline_user_${userId}`);
   }
   
   /**
@@ -53,10 +53,10 @@ export class KeyboardFactory {
     const keyboard = new InlineKeyboard();
     
     categories.forEach(category => {
-      keyboard.text(`📁 ${category.name}`, `category_${category._id}`).row();
+      keyboard.text(`${category.name}`, `category_${category._id}`).row();
     });
     
-    keyboard.text("🔙 Back to Main Menu", "main_menu");
+    keyboard.text("Back to Main Menu", "main_menu");
     
     return keyboard;
   }
@@ -72,15 +72,15 @@ export class KeyboardFactory {
     
     for (let i = 0; i < maxToDisplay; i++) {
       const product = products[i];
-      keyboard.text(` ${product.name}`, `product_${product._id}`).row();
+      keyboard.text(`${product.name}`, `product_${product._id}`).row();
     }
     
     // Add navigation if needed
     if (products.length > 10) {
-      keyboard.text("⏩ Next Page", `next_products_${categoryId}_10`);
+      keyboard.text("Next Page", `next_products_${categoryId}_10`);
     }
     
-    keyboard.row().text("🔙 Back to Categories", "view_categories");
+    keyboard.row().text("Back to Categories", "view_categories");
     
     return keyboard;
   }
@@ -92,7 +92,7 @@ export class KeyboardFactory {
     const keyboard = new InlineKeyboard();
     
     if (orders.length === 0) {
-      return keyboard.text("🔙 Back to Main Menu", "main_menu");
+      return keyboard.text("Back to Main Menu", "main_menu");
     }
     
     // Show up to 5 most recent orders
@@ -100,11 +100,11 @@ export class KeyboardFactory {
     
     recentOrders.forEach(order => {
       if (order._id) {
-        keyboard.text(`🧾 Order #${order._id.slice(-6)}`, `order_${order._id}`).row();
+        keyboard.text(`Order #${order._id.slice(-6)}`, `order_${order._id}`).row();
       }
     });
     
-    keyboard.text("🔙 Back to Main Menu", "main_menu");
+    keyboard.text("Back to Main Menu", "main_menu");
     
     return keyboard;
   }
@@ -118,7 +118,7 @@ export class KeyboardFactory {
     // Show orders
     orders.forEach(order => {
       if (order._id) {
-        keyboard.text(`🧾 Order #${order._id.slice(-6)}`, `order_${order._id}`).row();
+        keyboard.text(`Order #${order._id.slice(-6)}`, `order_${order._id}`).row();
       }
     });
     
@@ -126,7 +126,7 @@ export class KeyboardFactory {
     if (totalPages > 1) {
       // Add previous button if not on first page
       if (currentPage > 1) {
-        keyboard.text(`⬅️ Previous`, `orders_page_${currentPage - 1}`);
+        keyboard.text("Previous", `orders_page_${currentPage - 1}`);
       }
       
       // Add page indicator
@@ -134,14 +134,14 @@ export class KeyboardFactory {
       
       // Add next button if not on last page
       if (currentPage < totalPages) {
-        keyboard.text(`Next ➡️`, `orders_page_${currentPage + 1}`);
+        keyboard.text("Next", `orders_page_${currentPage + 1}`);
       }
       
       keyboard.row();
     }
     
     // Add back to main menu button
-    keyboard.text("🔙 Back to Main Menu", "main_menu");
+    keyboard.text("Back to Main Menu", "main_menu");
     
     return keyboard;
   }
@@ -150,14 +150,14 @@ export class KeyboardFactory {
    * Generic back button with customizable text
    */
   static backButton(destination: string, label: string = "Back"): InlineKeyboard {
-    return new InlineKeyboard().text(`🔙 ${label}`, destination);
+    return new InlineKeyboard().text(label, destination);
   }
 
   /**
    * Back to main menu keyboard
    */
   static backToMain(): InlineKeyboard {
-    return new InlineKeyboard().text("🔙 Back to Main Menu", "main_menu");
+    return new InlineKeyboard().text("Back to Main Menu", "main_menu");
   }
   
   /**
@@ -168,10 +168,10 @@ export class KeyboardFactory {
     
     // Only show support option if order exists
     if (order._id) {
-      keyboard.text("🎫 Get Support for this Order", `support_order_${order._id}`);
+      keyboard.text("Get Support for this Order", `support_order_${order._id}`);
     }
     
-    keyboard.row().text("🔙 Back to Orders", "my_orders");
+    keyboard.row().text("Back to Orders", "my_orders");
     
     return keyboard;
   }
@@ -184,12 +184,12 @@ export class KeyboardFactory {
     
     // Only show purchase/preorder button if product is available or can be preordered
     if (product.isAvailable || product.allowPreorder) {
-      const buttonText = product.isAvailable ? "🛒 Purchase Now" : "⏳ Pre-order Now";
+      const buttonText = product.isAvailable ? "Purchase Now" : "Pre-order Now";
       keyboard.text(buttonText, `purchase_${product._id}`).row();
     }
     
     // Add back button to return to category
-    keyboard.text("🔙 Back to Products", "category_" + product.categoryId);
+    keyboard.text("Back to Products", "category_" + product.categoryId);
     
     return keyboard;
   }
@@ -199,23 +199,29 @@ export class KeyboardFactory {
    */
   static paymentConfirmation(productName: string, productId: string, quantity: number): InlineKeyboard {
     return new InlineKeyboard()
-      .text("✅ Yes, Complete Purchase", `confirm_purchase_${productId}_${quantity}`)
+      .text("Yes, Complete Purchase", `confirm_purchase_${productId}_${quantity}`)
       .row()
-      .text("❌ No, Cancel", "cancel_purchase");
+      .text("No, Cancel", "cancel_purchase");
   }
 
   /**
    * Payment link keyboard with attractively styled buttons
    */
-  static paymentLink(paymentUrl: string, transactionId: string): InlineKeyboard {
+  static paymentLink(paymentUrl: string | undefined, transactionId: string): InlineKeyboard {
+    // Add fallback URL and null/undefined check
+    const safeUrl = paymentUrl || 'https://nowpayments.io';
+    
+    // Ensure the URL has a valid format (must start with http:// or https://)
+    const formattedUrl = safeUrl.startsWith('http') ? safeUrl : `https://${safeUrl}`;
+    
     return new InlineKeyboard()
-      .url("💳 Complete Payment Securely", paymentUrl)
+      .url("Complete Payment Securely", formattedUrl)
       .row()
-      .text("🔄 Check Payment Status", `check_payment_${transactionId}`)
+      .text("Check Payment Status", `check_payment_${transactionId}`)
       .row()
-      .text("❓ Need Help?", "payment_support")
+      .text("Need Help?", "payment_support")
       .row()
-      .text("🔙 Back to Main Menu", "main_menu");
+      .text("Back to Main Menu", "main_menu");
   }
 }
 

@@ -2,8 +2,7 @@ import { IPaymentTransaction } from '../models/PaymentTransaction';
 import * as PaymentRepository from '../repositories/PaymentRepository';
 import * as OrderRepository from '../repositories/OrderRepository';
 import * as ProductRepository from '../repositories/ProductRepository';
-import { ObjectId } from 'mongodb';
-import { paymentProcessor } from '../services/PaymentProcessor';
+import { nowPaymentsService } from '../services/NowPaymentsService';
 import { Request, Response } from "express";
 import { handlePaymentSuccess } from "../bot/handlers/paymentHandlers";
 
@@ -201,17 +200,21 @@ export async function checkPaymentStatus(id: string): Promise<IPaymentTransactio
     if (!transaction) {
       return null;
     }
-    // تحقق فقط من حالة معاملات NowPayments (crypto)
-    if (transaction.paymentProvider === 'crypto' &&
-        transaction.status === 'pending' &&
-        transaction.providerTransactionId) {
-      // تحقق من حالة الدفع عبر NowPayments
-      const paymentStatus = await paymentProcessor.checkPaymentStatus(transaction.providerTransactionId);
+    
+    // Only check status for pending NOWPayments transactions
+    if (transaction.paymentProvider === 'nowpayments' && 
+        transaction.status === 'pending' && 
+        transaction.externalId) {
+      
+      // Check payment status using NOWPayments API
+      const paymentStatus = await nowPaymentsService.getPaymentStatus(transaction.externalId);
+      
       if (paymentStatus === 'completed') {
         // Update transaction as completed
         return await PaymentRepository.updateTransactionStatus(id, 'completed');
       }
     }
+    
     return transaction;
   } catch (error) {
     console.error(`Error checking payment status for transaction ${id}:`, error);
@@ -243,10 +246,10 @@ export async function getPaymentStatistics(
   }
 }
 
-export async function paypalSuccess(req: Request, res: Response) {
+export async function nowpaymentsSuccess(req: Request, res: Response) {
   try {
-    const transactionId = req.query.txId as string; // example param for your success URL
-    // Possibly capture or verify payment here
+    const transactionId = req.query.txId as string;
+    // Process successful payment
     await handlePaymentSuccess(transactionId);
     res.status(200).json({ message: "Payment success processed." });
   } catch (error) {

@@ -1,5 +1,5 @@
 import { bot } from "../../bot";
-import { PaymentStatus } from "../../services/PaymentProcessor";
+import { PaymentStatus } from "../../services/NowPaymentsService";
 import * as PaymentRepository from "../../repositories/PaymentRepository";
 import * as ProductRepository from "../../repositories/ProductRepository";
 import * as OrderRepository from "../../repositories/OrderRepository";
@@ -182,8 +182,8 @@ async function sendDigitalContentDelivery(
   try {
     // Create message with product details and digital content
     let message = wasPreorder ? 
-      ` *YOUR PRE-ORDER IS READY!*\n\n` :
-      ` *ORDER COMPLETED - DELIVERY*\n\n`;
+      `🎮 *YOUR PRE-ORDER IS READY!*\n\n` :
+      `🎮 *ORDER COMPLETED - DELIVERY*\n\n`;
 
     message += `*Order ID:* #${orderId.slice(-6)}\n`;
     message += `*Product:* ${productName}\n\n`;
@@ -282,23 +282,24 @@ export async function processPaymentWebhook(
   eventData: any
 ): Promise<boolean> {
   try {
-    // Handle NowPayments webhook
+    // Only handle NOWPayments webhooks
     if (provider === 'nowpayments') {
+      // Process NOWPayments webhook
       const paymentId = eventData.payment_id;
-      const paymentStatus = eventData.payment_status;
-      const tx = await PaymentRepository.findTransactionByProviderId(paymentId);
-      if (tx) {
-        if (paymentStatus === 'finished' || paymentStatus === 'confirmed') {
+      
+      if (paymentId) {
+        const tx = await PaymentRepository.findTransactionByExternalId(paymentId);
+        if (tx && tx.status !== 'completed') {
+          // Update transaction status
           await PaymentRepository.updateTransactionStatus(tx._id!, 'completed');
+          
+          // Process the successful payment
           await handlePaymentSuccess(tx._id!);
-          return true;
-        } else if (paymentStatus === 'failed' || paymentStatus === 'expired' || paymentStatus === 'cancelled') {
-          await PaymentRepository.updateTransactionStatus(tx._id!, 'failed');
-          await handlePaymentFailure(tx._id!, paymentStatus);
           return true;
         }
       }
     }
+    
     return false;
   } catch (error) {
     console.error("Error processing payment webhook:", error);
