@@ -7,13 +7,347 @@ import { bot } from "../../bot";
 import { nowPaymentsService } from "../../services/NowPaymentsService";
 import * as PaymentRepository from "../../repositories/PaymentRepository";
 import { IPaymentTransaction } from "../../models/PaymentTransaction";
+import GcoinService from "../../services/GcoinService";
+import * as UserRepository from "../../repositories/UserRepository";
 
 /**
  * Service to handle the product purchase flow
  */
 export class PurchaseService {
   /**
-   * Initiate purchase for a product
+   * Initiate purchase for a product using GCoin
+   * @returns true if successful, false if error
+   */
+  static async initiateProductPurchaseWithGcoin(
+    ctx: MyContext,
+    productId: string,
+    quantity: number = 1
+  ): Promise<boolean> {
+    try {
+      // Check if product exists and is available
+      const product = await ProductRepository.findProductById(productId);
+      
+      if (!product) {
+        await ctx.reply("Sorry, this product was not found.");
+        return false;
+      }
+      
+      if (!product.isAvailable && !product.allowPreorder) {
+        await ctx.reply("Sorry, this product is currently not available for purchase.");
+        return false;
+      }
+      
+      // Check if user exists in context
+      if (!ctx.from?.id) {
+        await ctx.reply("Unable to identify user. Please try again.");
+        return false;
+      }
+      
+      const telegramId = ctx.from.id;
+      const user = await UserRepository.findUserByTelegramId(telegramId);
+      
+      if (!user) {
+        await ctx.reply("User account not found. Please use /start to register.");
+        return false;
+      }
+      
+      // Check if sufficient quantity is available
+      if (product.isAvailable && (!product.digitalContent || product.digitalContent.length < quantity)) {
+        await ctx.reply(`Sorry, we don't have enough of this product in stock. Currently available: ${product.digitalContent?.length || 0}. Please try again with a smaller quantity or contact support.`);
+        return false;
+      }
+      
+      // Calculate total amount in GCoins
+      const totalGcoins = quantity * product.gcoinPrice;
+      
+      // Check if user has enough GCoins
+      if (user.gcoinBalance < totalGcoins) {
+        await ctx.reply(
+          `You do not have enough GCoin to purchase this product.\n` +
+          `Price: ${totalGcoins} GCoin\n` +
+          `Your balance: ${user.gcoinBalance} GCoin\n\n` +
+          `You can buy more GCoin using the /buy_gcoins command.`
+        );
+        return false;
+      }
+      
+      // Request purchase confirmation
+      await this.requestGcoinPurchaseConfirmation(ctx, productId, quantity);
+      
+      return true;
+    } catch (error) {
+      console.error("Error initiating product purchase with GCoin:", error);
+      await ctx.reply("An error occurred while trying to make the purchase. Please try again later.");
+      return false;
+    }
+  }
+  
+  /**
+   * Request confirmation from the user before proceeding with GCoin purchase
+   */
+  static async requestGcoinPurchaseConfirmation(
+    ctx: MyContext,
+    productId: string,
+    quantity: number = 1
+  ): Promise<void> {
+    // Get product details for a rich confirmation message
+    const product = await ProductRepository.findProductById(productId);
+    if (!product) {
+      await ctx.reply("Sorry, this product was not found.");
+      return;
+    }
+
+    const totalGcoins = quantity * product.gcoinPrice;
+    
+    // Get user's current balance
+    const user = await UserRepository.findUserByTelegramId(ctx.from!.id);
+    const currentBalance = user ? user.gcoinBalance : 0;
+    
+    // Create an appealing confirmation message
+    const message = `
+🛒 *Purchase Confirmation*
+
+*${product.name}*
+${product.description ? `\n${product.description.substring(0, 100)}${product.description.length > 100 ? '...' : ''}` : ''}
+
+💰 *Price:* ${product.gcoinPrice} GCoin each
+📦 *Quantity:* ${quantity}
+💵 *Total:* ${totalGcoins} GCoin
+
+💳 *Your balance:* ${currentBalance} GCoin
+💳 *Balance after purchase:* ${currentBalance - totalGcoins} GCoin
+
+Are you sure you want to complete this purchase?`;
+
+    // Send confirmation with attractive buttons
+    await ctx.reply(message, {
+      parse_mode: "Markdown",
+      reply_markup: KeyboardFactory.gcoinPaymentConfirmation(product.name, productId, quantity)
+    });
+  }
+  
+  /**
+   * Complete purchase with GCoin
+   */
+  static async completePurchaseWithGcoin(
+    ctx: MyContext,
+    productId: string, 
+    quantity: number = 1
+  ): Promise<boolean> {
+    try {
+      // Check if user exists in context
+      if (!ctx.from?.id) {
+        await ctx.reply("Unable to identify user. Please try again.");
+        return false;
+      }
+      
+      const telegramId = ctx.from.id;
+      const user = await UserRepository.findUserByTelegramId(telegramId);
+      
+      if (!user) {
+        await ctx.reply("User account not found. Please use /start to register.");
+        return false;
+      }
+      
+      // Get the product
+      const product = await ProductRepository.findProductById(productId);
+      if (!product) {
+        await ctx.reply("Sorry, this product was not found.");
+        return false;
+      }
+      
+      // Calculate total GCoins
+      const totalGcoins = quantity * product.gcoinPrice;
+      
+      // Check if user has enough GCoins again (to be safe)
+      if (user.gcoinBalance < totalGcoins) {
+        await ctx.reply(
+          `You do not have enough GCoin to purchase this product.\n` +
+          `Price: ${totalGcoins} GCoin\n` +
+          `Your balance: ${user.gcoinBalance} GCoin\n\n` +
+          `You can buy more GCoin using the /buy_gcoins command.`
+        );
+        return false;
+      }
+      
+      // Determine order type
+      const orderType = product.isAvailable ? "purchase" : "preorder";
+      
+      // Create the order first
+      const order = await OrderRepository.createOrder({
+        userId: user._id!,
+        productId,
+        quantity,
+        unitPrice: product.price, // Store original USD price for reference
+        type: orderType,
+        customerNote: `Paid with GCoins: ${totalGcoins} GCoins`
+      });
+      
+      // Deduct GCoins from user's balance
+      const updatedUser = await GcoinService.deductGcoins(
+        user._id!,
+        totalGcoins,
+        'purchase_product',
+        `Purchase of ${product.name} (${quantity} items)`,
+        'order',
+        order._id
+      );
+      
+      if (!updatedUser) {
+        await ctx.reply("An error occurred while processing payment. Please try again.");
+        
+        // Attempt to cancel the order
+        await OrderRepository.updateOrderStatus(
+          order._id!,
+          "cancelled",
+          "Failed to deduct GCoins from user's account"
+        );
+        
+        return false;
+      }
+      
+      // Process referral first purchase bonus if applicable
+      await GcoinService.processReferralPurchaseBonus(user._id!);
+      
+      // Now handle delivery of digital content or preorder confirmation
+      if (product.isAvailable) {
+        // Get digital content for delivery
+        const contentToDeliver = product.digitalContent.slice(0, quantity);
+        
+        // Update product's digital content
+        const updatedDigitalContent = product.digitalContent.slice(quantity);
+        await ProductRepository.updateProduct(product._id!, {
+          digitalContent: updatedDigitalContent,
+          isAvailable: updatedDigitalContent.length > 0
+        });
+        
+        // Send digital content to the user
+        await this.sendDigitalContentDeliveryWithGcoin(
+          ctx,
+          order._id!,
+          product.name,
+          contentToDeliver,
+          totalGcoins
+        );
+        
+        // Mark order as completed
+        await OrderRepository.updateOrderStatus(
+          order._id!,
+          "completed",
+          `Payment with GCoins confirmed, digital product delivered. GCoins spent: ${totalGcoins}`
+        );
+        
+      } else {
+        // Handle preorder - send confirmation
+        const preorderMessage = `
+🎮 *Pre-order Confirmed*
+
+Your pre-order for *${product.name}* has been confirmed. You will be notified when the product becomes available.
+
+*Order ID:* #${order._id?.slice(-6)}
+*Product:* ${product.name}
+*Quantity:* ${quantity}
+*GCoin Spent:* ${totalGcoins}
+
+${product.preorderNote || "You will receive a notification when your product is ready for delivery."}
+`;
+
+        await ctx.reply(preorderMessage, {
+          parse_mode: "Markdown",
+          reply_markup: KeyboardFactory.mainMenu()
+        });
+      }
+      
+      // Notify admin about new order
+      await this.notifyAdminAboutGcoinOrder(
+        order._id!,
+        user._id!,
+        ctx.from.username,
+        product.name,
+        quantity,
+        product.price,
+        totalGcoins,
+        orderType
+      );
+      
+      return true;
+      
+    } catch (error) {
+      console.error("Error completing purchase with GCoin:", error);
+      await ctx.reply("An error occurred while processing your purchase request. Please try again later.");
+      return false;
+    }
+  }
+  
+  /**
+   * Send digital content delivery message with GCoin payment details
+   */
+  private static async sendDigitalContentDeliveryWithGcoin(
+    ctx: MyContext,
+    orderId: string,
+    productName: string,
+    digitalContent: string[],
+    gcoinsSpent: number
+  ): Promise<void> {
+    try {
+      // Create message with product details and digital content
+      let message = `🎮 *Order Completed - Delivery*\n\n`;
+
+      message += `*Order ID:* #${orderId.slice(-6)}\n`;
+      message += `*Product:* ${productName}\n`;
+      message += `*GCoin Spent:* ${gcoinsSpent}\n\n`;
+      message += `🔐 *Your Digital Product Details*\n\n`;
+      message += `Below are your digital product details for ${productName}:\n\n`;
+
+      // Format each digital content item as a code or string
+      digitalContent.forEach((item, index) => {
+        message += `*Item ${index + 1}:* \`${item}\`\n\n`;
+      });
+
+      // Send the message
+      await ctx.reply(message, {
+        parse_mode: "Markdown",
+        reply_markup: KeyboardFactory.mainMenu()
+      });
+    } catch (error) {
+      console.error(`Failed to send digital content to user:`, error);
+      await ctx.reply("Your order has been completed. Use /orders to view your order details.");
+    }
+  }
+  
+  /**
+   * Notify admin about a new GCoin order
+   */
+  private static async notifyAdminAboutGcoinOrder(
+    orderId: string,
+    userId: string,
+    username: string | undefined,
+    productName: string,
+    quantity: number,
+    price: number,
+    gcoinsSpent: number,
+    orderType: string
+  ): Promise<void> {
+    try {
+      await NotificationService.sendAdminNotification(`
+📢 *NEW ${orderType.toUpperCase()} WITH GCOINS*
+
+*Order ID:* #${orderId.slice(-6)}
+*User:* ${username || userId}
+*Product:* ${productName}
+*Quantity:* ${quantity}
+*USD Value:* $${(price * quantity).toFixed(2)}
+*GCoins Spent:* ${gcoinsSpent}
+
+*Status:* ${orderType === 'purchase' ? '✅ Delivered' : '⏳ Pre-ordered'}
+`);
+    } catch (error) {
+      console.error("Error sending admin notification:", error);
+    }
+  }
+  
+  /**
+   * Initiate purchase for a product using crypto payment
    * @returns true if successful, false if error
    */
   static async initiateProductPurchase(
@@ -75,7 +409,6 @@ export class PurchaseService {
 
       // Save transaction in DB (no order creation yet)
       const savedTx = await PaymentRepository.createTransaction({
-        ...paymentTx,
         userId,
         orderId: "", // Will be filled in after payment
         paymentProvider: "nowpayments",
@@ -170,7 +503,7 @@ Are you sure you want to proceed with this purchase?`;
       const orderTypeNote = isPreorder 
         ? (product.preorderNote || "This item will be delivered when in stock.")
         : "Your order has been processed and is now ready.";
-      
+
       const confirmationMessage = `
 🎮 *ORDER CONFIRMATION*
 
@@ -189,7 +522,7 @@ Use /orders to view all your orders and their status.
       // Send confirmation to user
       await ctx.reply(confirmationMessage, {
         parse_mode: "Markdown",
-        reply_markup: KeyboardFactory.backToMain()
+        reply_markup: KeyboardFactory.mainMenu()
       });
       
     } catch (error) {
@@ -197,7 +530,6 @@ Use /orders to view all your orders and their status.
       await ctx.reply("Your order has been placed. Use /orders to view your order details.");
     }
   }
-  
 
   /**
    * Complete an order (mark as fulfilled)
@@ -252,33 +584,31 @@ Use /orders to view all your orders and their status.
     inventoryAfter?: number
   ): Promise<void> {
     try {
-      if (orderType === "preorder") {
-        await NotificationService.sendPreorderNotification({
-          orderId,
-          userId,
-          username,
-          productName,
-          quantity,
-          price,
-          totalAmount
-        });
-      } else {
-        await NotificationService.sendOrderNotification({
-          orderId,
-          userId,
-          username,
-          productName,
-          quantity,
-          price,
-          totalAmount,
-          paymentMethod: "Direct Purchase",
-          digitalContent,
-          inventoryBefore,
-          inventoryAfter
-        });
+      let inventoryInfo = '';
+      
+      if (typeof inventoryBefore === 'number' && typeof inventoryAfter === 'number') {
+        inventoryInfo = `
+*Inventory:*
+• Before: ${inventoryBefore}
+• After: ${inventoryAfter}
+• Remaining: ${inventoryAfter}`;
       }
+      
+      await NotificationService.sendAdminNotification(`
+📢 *NEW ${orderType.toUpperCase()}*
+
+*Order ID:* #${orderId.slice(-6)}
+*User:* ${username || userId}
+*Product:* ${productName}
+*Quantity:* ${quantity}
+*Price:* $${price.toFixed(2)} each
+*Total:* $${totalAmount.toFixed(2)}
+${inventoryInfo}
+
+*Status:* ${orderType === 'purchase' ? '✅ Delivered' : '⏳ Pre-ordered'}
+`);
     } catch (error) {
-      console.error("Error notifying admin about order:", error);
+      console.error("Error sending admin notification:", error);
     }
   }
   
@@ -357,22 +687,13 @@ Use /orders to view all your orders and their status.
         message += `
 🔐 *YOUR DIGITAL PRODUCT DETAILS*
 
-Here are your login details for ${product.name}:
+Here are your digital product details for ${product.name}:
 
 `;
 
         // Add each digital content item
         contentToDeliver.forEach((item, index) => {
-          try {
-            // Try to split data into email:password format
-            const [email, password] = item.split(':');
-            message += `*Item ${index + 1}:*\n`;
-            message += `Email: \`${email}\`\n`;
-            message += `Password: \`${password}\`\n\n`;
-          } catch (e) {
-            // Use fallback format if splitting fails
-            message += `*Item ${index + 1}:* \`${item}\`\n\n`;
-          }
+          message += `*Item ${index + 1}:* \`${item}\`\n\n`;
         });
         
         await bot.api.sendMessage(parseInt(order.userId), message, {

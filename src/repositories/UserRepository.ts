@@ -1,6 +1,7 @@
 import { Collection, ObjectId } from 'mongodb';
 import { connectToDatabase, getDb } from '../database/connection';
 import { IUser } from '../models/User';
+import { generateUniqueReferralCode } from '../utils/adminUtils';
 
 // Simple helper function to convert MongoDB _id to string
 function mapUser(user: any): IUser | null {
@@ -31,6 +32,18 @@ export async function findUserById(id: string): Promise<IUser | null> {
   }
 }
 
+export async function findUserByReferralCode(referralCode: string): Promise<IUser | null> {
+  try {
+    await connectToDatabase();
+    const collection = getDb().collection('users');
+    const user = await collection.findOne({ referralCode });
+    return mapUser(user);
+  } catch (error) {
+    console.error('Error finding user by referral code:', error);
+    return null;
+  }
+}
+
 export async function findAllUsers(filter: any = {}): Promise<IUser[]> {
   await connectToDatabase();
   const collection = getDb().collection('users');
@@ -57,7 +70,7 @@ export async function findAllAcceptedUsers(): Promise<IUser[]> {
 export async function createOrUpdateUser(userData: {
   telegramId: number;
   username?: string;
-  isAccepted?: boolean;
+  referrerId?: string;
 }): Promise<IUser> {
   await connectToDatabase();
   const collection = getDb().collection('users');
@@ -85,11 +98,16 @@ export async function createOrUpdateUser(userData: {
     }
     return mappedUser;
   } else {
-    // Create new user
+    // Create new user with referral code and initial GCoin balance
+    const referralCode = await generateUniqueReferralCode();
+    
     const newUser = {
       telegramId: userData.telegramId,
       username: userData.username,
-      isAccepted: userData.isAccepted || false,
+      gcoinBalance: 0,
+      referralCode,
+      referrerId: userData.referrerId,
+      totalReferralEarnings: 0,
       createdAt: now,
       updatedAt: now
     };
@@ -110,6 +128,50 @@ export async function updateUserAcceptance(telegramId: number, isAccepted: boole
   );
   
   return mapUser(result);
+}
+
+export async function updateUserGcoinBalance(userId: string, amount: number): Promise<IUser | null> {
+  try {
+    await connectToDatabase();
+    const collection = getDb().collection('users');
+    const objectId = new ObjectId(userId);
+    
+    const result = await collection.findOneAndUpdate(
+      { _id: objectId },
+      { $inc: { gcoinBalance: amount }, $set: { updatedAt: new Date() } },
+      { returnDocument: 'after' }
+    );
+    
+    return mapUser(result);
+  } catch (error) {
+    console.error('Error updating user GCoin balance:', error);
+    return null;
+  }
+}
+
+export async function updateReferralEarnings(userId: string, amount: number): Promise<IUser | null> {
+  try {
+    await connectToDatabase();
+    const collection = getDb().collection('users');
+    const objectId = new ObjectId(userId);
+    
+    const result = await collection.findOneAndUpdate(
+      { _id: objectId },
+      { 
+        $inc: { 
+          gcoinBalance: amount,
+          totalReferralEarnings: amount 
+        }, 
+        $set: { updatedAt: new Date() } 
+      },
+      { returnDocument: 'after' }
+    );
+    
+    return mapUser(result);
+  } catch (error) {
+    console.error('Error updating user referral earnings:', error);
+    return null;
+  }
 }
 
 export async function updateUser(id: string, userData: Partial<IUser>): Promise<IUser | null> {

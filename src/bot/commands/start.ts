@@ -1,85 +1,90 @@
-import { Bot, InlineKeyboard } from "grammy";
+import { Bot } from "grammy";
 import { MyContext } from "../types/session";
-import * as UserRepository from "../../repositories/UserRepository";
-import { availableCommands } from "./index";
-import { messages } from "../utils/messages";
 import KeyboardFactory from "../keyboards";
-import { createMainMenu } from "../keyboards/persistentKeyboard";
-import { createMainKeyboard } from "./menu";
+import * as UserRepository from "../../repositories/UserRepository";
+import { isAdmin } from "../../utils/adminUtils";
+import { processReferralCode } from "./referrals";
 
-export async function sendTermsAndConditions(ctx: MyContext): Promise<void> {
-  await ctx.reply(messages.terms, {
-    parse_mode: "Markdown",
-    reply_markup: KeyboardFactory.terms()
-  });
-  
-  // Set session step to await terms response
-  ctx.session.step = "terms";
-}
-
-export async function sendWelcomeMessage(ctx: MyContext): Promise<void> {
-  const welcomeText = `
-Welcome to our Digital Store! 👋
-
-*Available Commands:*
-/start - Show this welcome message
-/products - Browse our product catalog
-/help - Display help information
-/orders - Check your order history
-/support - Contact our support team
-/menu - Show button menu
-
-Use commands or the buttons below for navigation!
-`;
-
-  if (ctx.callbackQuery) {
-    await ctx.editMessageText(welcomeText, {
-      parse_mode: "Markdown"
-    });
+/**
+ * Handle /start command
+ */
+async function startCommand(ctx: MyContext): Promise<void> {
+  try {
+    if (!ctx.from) return;
     
-    // Show keyboard menu after editing message
-    await ctx.reply("Use these quick access buttons:", {
-      reply_markup: createMainKeyboard()
-    });
-  } else {
-    await ctx.reply(welcomeText, {
-      parse_mode: "Markdown",
-      reply_markup: createMainKeyboard() // Show keyboard by default
-    });
+    // Handle start with parameters (like referral codes)
+    if (ctx.match) {
+      const param = ctx.match.toString();
+      
+      // Handle referral codes
+      if (param.startsWith("ref_")) {
+        const referralCode = param.substring(4);
+        await processReferralCode(ctx, referralCode);
+      }
+    }
+    
+    // Check if user exists in database
+    const user = await UserRepository.findUserByTelegramId(ctx.from.id);
+    
+    if (user) {
+      // User exists, show main menu
+      ctx.session.step = "approved";
+      
+      // Get user's GCoin balance
+      const formattedBalance = user.gcoinBalance.toLocaleString('en-US');
+      
+      await ctx.reply(
+        `👋 Welcome to GameKey Store!\n\n` +
+        `Current GCoin balance: *${formattedBalance} GCoin*\n\n` +
+        `Choose one of the options below to continue:`,
+        {
+          parse_mode: "Markdown",
+          reply_markup: KeyboardFactory.mainMenu()
+        }
+      );
+    } else {
+      // New user, start registration flow
+      ctx.session.step = "terms";
+      
+      const isAdminUser = isAdmin(ctx.from.id);
+      
+      if (isAdminUser) {
+        // Admin users get auto-approved
+        const newUser = await UserRepository.createOrUpdateUser({
+          telegramId: ctx.from.id,
+          username: ctx.from.username
+        });
+        
+        ctx.session.step = "approved";
+        
+        await ctx.reply(
+          `👋 Welcome to GameKey Control Panel!\n\n` +
+          `You have been recognized as an administrator. You have access to all features.`,
+          {
+            reply_markup: KeyboardFactory.mainMenu()
+          }
+        );
+      } else {
+        // Regular user registration with terms
+        await ctx.reply(
+          "👋 Welcome to GameKey Store!\n\n" +
+          "To proceed, please read and accept the terms of service:\n\n" +
+          "1. This bot is used only for purchasing digital products.\n" +
+          "2. All sales are final and non-refundable.\n" +
+          "3. We are not responsible for issues resulting from misuse.\n\n" +
+          "Do you agree to these terms?",
+          {
+            reply_markup: KeyboardFactory.terms()
+          }
+        );
+      }
+    }
+  } catch (error) {
+    console.error("Error in start command:", error);
+    await ctx.reply("Sorry, an error occurred while processing your request. Please try again later.");
   }
 }
 
 export function registerStartCommand(bot: Bot<MyContext>): void {
-  bot.command("start", async (ctx) => {
-    // Everything is handled by the channel membership middleware
-    // If the user hasn't joined the channel, they'll be prompted to join
-    // If they have joined, this code will execute
-    
-    const telegramId = ctx.from?.id;
-    
-    if (!telegramId) {
-      await ctx.reply("Sorry, unable to identify user.");
-      return;
-    }
-
-    // Check if user already exists in database
-    const existingUser = await UserRepository.findUserByTelegramId(telegramId);
-
-    if (existingUser) {
-      if (existingUser.isAccepted) {
-        // User is already approved, show welcome message with commands
-        ctx.session.step = "approved"; // Explicitly reset session step
-        await sendWelcomeMessage(ctx);
-      } else {
-        // User is registered but pending approval
-        ctx.session.step = "pending"; // Explicitly set to pending
-        await ctx.reply(
-          "Your registration is pending approval. We'll notify you when an admin approves your account."
-        );
-      }
-    } else {
-      // New user, show terms and conditions
-      await sendTermsAndConditions(ctx);
-    }
-  });
+  bot.command("start", startCommand);
 }

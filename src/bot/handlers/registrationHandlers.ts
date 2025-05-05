@@ -1,7 +1,6 @@
 import { Bot, InlineKeyboard } from "grammy";
 import { MyContext } from "../types/session";
 import * as UserRepository from "../../repositories/UserRepository";
-import { messages } from "../utils/messages";
 import KeyboardFactory from "../keyboards";
 import { NotificationService } from "../services/NotificationService";
 
@@ -14,40 +13,24 @@ export function registerRegistrationHandlers(bot: Bot<MyContext>): void {
     }
 
     try {
-      // Create a new user with pending status
+      // Create a new user and allow access immediately
       const userData = {
         telegramId: ctx.from.id,
-        username: ctx.from.username,
-        isAccepted: false
+        username: ctx.from.username
       };
 
       await UserRepository.createOrUpdateUser(userData);
-      ctx.session.step = "pending";
+      ctx.session.step = "approved";
       
       // Answer the callback query and update the message
-      await ctx.answerCallbackQuery("Thank you for accepting the terms!");
+      await ctx.answerCallbackQuery("تم تسجيلك بنجاح!");
       await ctx.editMessageText(
-        "✅ Thank you for registering!\n\n" +
-        "Your account is pending approval. We'll notify you when an admin reviews your registration.\n\n" +
-        "Please wait for approval to access the store."
+        "✅ تم تسجيلك بنجاح! يمكنك الآن استخدام جميع ميزات البوت مباشرة.\n\nاستخدم القائمة الرئيسية للبدء."
       );
-
-      // Send a notification to all admins using NotificationService
-      try {
-        await NotificationService.sendUserRegistrationNotification({
-          userId: ctx.from.id,
-          username: ctx.from.username,
-          firstName: ctx.from.first_name,
-          lastName: ctx.from.last_name
-        });
-      } catch (error) {
-        console.error("Failed to send admin notification:", error);
-      }
-
     } catch (error) {
       console.error("Error in registration:", error);
       await ctx.answerCallbackQuery("Error processing registration");
-      await ctx.reply("An error occurred during registration. Please try again with /start");
+      await ctx.reply("حدث خطأ أثناء التسجيل. حاول مرة أخرى باستخدام /start");
     }
   });
 
@@ -87,11 +70,14 @@ export function registerRegistrationHandlers(bot: Bot<MyContext>): void {
 
   // Register command shortcut
   bot.callbackQuery("register", async (ctx) => {
-    // Simulate /start command to show terms
-    await ctx.editMessageText(messages.terms, {
-      parse_mode: "Markdown",
-      reply_markup: KeyboardFactory.terms()
-    });
+    // عرض نص الشروط مباشرة بدل استخدام messages.terms
+    await ctx.editMessageText(
+      "*الشروط والأحكام*\n\nاستخدامك لهذا البوت يعني موافقتك على الشروط.\n\nاضغط موافق للاستمرار.",
+      {
+        parse_mode: "Markdown",
+        reply_markup: KeyboardFactory.terms()
+      }
+    );
     await ctx.answerCallbackQuery();
   });
 }

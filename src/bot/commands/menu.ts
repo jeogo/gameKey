@@ -1,83 +1,59 @@
-import { Bot, Keyboard } from "grammy";
+import { Bot } from "grammy";
 import { MyContext } from "../types/session";
-import { showCategories } from "./products";
-import { showOrdersPage } from "./orders";
-import { showHelpInfo } from "./help";
-import { showSupportInfo } from "./support";
-import { sendWelcomeMessage } from "./start";
+import KeyboardFactory from "../keyboards";
+import * as UserRepository from "../../repositories/UserRepository";
 
 /**
- * Create a persistent keyboard with the main commands
+ * Display the main menu
  */
-export function createMainKeyboard(): Keyboard {
-  return new Keyboard()
-    .text("🛍️ Products").text("🧾 My Orders").row()
-    .text("ℹ️ Help").text("📞 Support").row()
-    .text("🏠 Main Menu")
-    .resized()
-    .persistent();
-}
-
-/**
- * Show the menu keyboard
- */
-export async function showKeyboardMenu(ctx: MyContext): Promise<void> {
-  await ctx.reply("Menu enabled. You can now use these buttons for quick access:", {
-    reply_markup: createMainKeyboard()
-  });
-}
-
-/**
- * Hide the menu keyboard
- */
-export async function hideKeyboardMenu(ctx: MyContext): Promise<void> {
-  await ctx.reply("Menu hidden. Type /menu to show it again.", {
-    reply_markup: { remove_keyboard: true }
-  });
-}
-
-/**
- * Register menu commands and keyboard handlers
- */
-export function registerMenuHandlers(bot: Bot<MyContext>): void {
-  // Command to show menu
-  bot.command("menu", async (ctx) => {
-    await showKeyboardMenu(ctx);
-  });
-  
-  // Command to hide menu
-  bot.command("hidemenu", async (ctx) => {
-    await hideKeyboardMenu(ctx);
-  });
-  
-  // Handle keyboard button presses - map each to the correct command handler
-  bot.hears("🛍️ Products", async (ctx) => {
-    // Use exactly the same function that the /products command uses
-    await showCategories(ctx);
-  });
-  
-  bot.hears("🧾 My Orders", async (ctx) => {
-    if (!ctx.from?.id) {
-      await ctx.reply("Unable to identify user.");
+async function showMainMenu(ctx: MyContext): Promise<void> {
+  try {
+    if (!ctx.from) return;
+    
+    // Check if user exists
+    const user = await UserRepository.findUserByTelegramId(ctx.from.id);
+    
+    if (!user) {
+      await ctx.reply(
+        "Welcome to GameKey! To use the bot, please use the /start command first and accept the terms."
+      );
       return;
     }
     
-    // Use exactly the same function that the /orders command uses, starting at page 1
-    await showOrdersPage(ctx, ctx.from.id.toString(), 1);
-  });
-  
-  bot.hears("ℹ️ Help", async (ctx) => {
-    // Use exactly the same function that the /help command uses
-    await showHelpInfo(ctx);
-  });
-  
-  bot.hears("📞 Support", async (ctx) => {
-    // Use exactly the same function that the /support command uses
-    await showSupportInfo(ctx);
-  });
-  
-  bot.hears("🏠 Main Menu", async (ctx) => {
-    // Use exactly the same function that the /start command uses
-    await sendWelcomeMessage(ctx);
+    // Format balance with thousands separator
+    const formattedBalance = user.gcoinBalance.toLocaleString('en-US');
+    
+    const welcomeMessage = `
+🎮 *Welcome to GameKey Store!*
+
+💰 Your current balance: *${formattedBalance} GCoin*
+
+Please select an option from the menu below:
+`;
+    
+    if (ctx.callbackQuery) {
+      await ctx.editMessageText(welcomeMessage, {
+        parse_mode: "Markdown",
+        reply_markup: KeyboardFactory.mainMenu()
+      });
+      await ctx.answerCallbackQuery();
+    } else {
+      await ctx.reply(welcomeMessage, {
+        parse_mode: "Markdown",
+        reply_markup: KeyboardFactory.mainMenu()
+      });
+    }
+    
+  } catch (error) {
+    console.error("Error showing main menu:", error);
+    await ctx.reply("Sorry, an error occurred. Please try again later.");
+  }
+}
+
+export function registerMenuCommand(bot: Bot<MyContext>): void {
+  bot.command("menu", showMainMenu);
+  bot.callbackQuery("main_menu", async (ctx) => {
+    await showMainMenu(ctx);
+    await ctx.answerCallbackQuery();
   });
 }

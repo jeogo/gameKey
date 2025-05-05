@@ -1,4 +1,4 @@
-import { Bot, InlineKeyboard } from "grammy";
+import { Bot, CallbackQueryContext, InlineKeyboard } from "grammy";
 import { MyContext } from "../types/session";
 import * as OrderRepository from "../../repositories/OrderRepository";
 import * as ProductRepository from "../../repositories/ProductRepository";
@@ -6,17 +6,12 @@ import * as UserRepository from "../../repositories/UserRepository";
 import * as PaymentRepository from "../../repositories/PaymentRepository";
 import * as PaymentController from "../../controllers/PaymentController";
 import KeyboardFactory from "../keyboards";
-import { messages } from "../utils/messages";
 import { bot } from "../../bot";
 import { PurchaseService } from "../services/PurchaseService";
 import { isAdmin } from "../../utils/adminUtils";
-
-// Import command implementations
 import { showOrdersPage, showOrderDetail } from "../commands/orders";
 import { showCategories, showProductsInCategory, showProductDetails, purchaseProduct } from "../commands/products";
-import { sendTermsAndConditions, sendWelcomeMessage } from "../commands/start";
-import { showHelpInfo } from "../commands/help";
-import { showSupportInfo, showContactInfo } from "../commands/support";
+import { showContactInfo } from "../commands/support";
 
 /**
  * Register all callback handlers for the bot
@@ -67,7 +62,7 @@ export function registerCallbackHandlers(bot: Bot<MyContext>): void {
     try {
       const categoryId = ctx.match[1];
       const offset = parseInt(ctx.match[2]);
-      await showProductsInCategory(ctx, categoryId, offset);
+      await showProductsInCategory(ctx, categoryId);
       await ctx.answerCallbackQuery();
     } catch (error) {
       console.error("Error loading more products:", error);
@@ -96,7 +91,8 @@ export function registerCallbackHandlers(bot: Bot<MyContext>): void {
     const quantity = parseInt(ctx.match[2], 10);
 
     await ctx.answerCallbackQuery();
-    await PurchaseService.initiateProductPurchase(ctx, productId, quantity);
+    // Enforce GCoin-only purchases
+    await PurchaseService.initiateProductPurchaseWithGcoin(ctx, productId, quantity);
   });
 
   // Handle cancel purchase
@@ -259,43 +255,21 @@ export function registerCallbackHandlers(bot: Bot<MyContext>): void {
     }
 
     try {
-      // Create a new user with pending status
+      // تسجيل المستخدم تلقائيًا
       const userData = {
         telegramId: ctx.from.id,
-        username: ctx.from.username,
-        isAccepted: false
+        username: ctx.from.username
       };
-
       await UserRepository.createOrUpdateUser(userData);
-      ctx.session.step = "pending";
-      
-      // Answer the callback query and update the message
-      await ctx.answerCallbackQuery("Thank you for accepting the terms!");
+      ctx.session.step = "approved";
+      await ctx.answerCallbackQuery("تم تسجيلك بنجاح!");
       await ctx.editMessageText(
-        "✅ Thank you for registering!\n\n" +
-        "Your account is pending approval. We'll notify you when an admin reviews your registration.\n\n" +
-        "Please wait for approval to access the store."
+        "✅ تم تسجيلك بنجاح! يمكنك الآن استخدام جميع ميزات البوت مباشرة.\n\nاستخدم القائمة الرئيسية للبدء."
       );
-
-      // Send a notification to admin
-      try {
-        const adminIds = process.env.ADMIN_IDS?.split(",").map(id => parseInt(id.trim(), 10)) || [];
-        for (const adminId of adminIds) {
-          if (adminId !== 0) {
-            await bot.api.sendMessage(
-              adminId,
-              `A new user has registered:\nUsername: @${ctx.from.username || "NoUsername"}\nID: ${ctx.from.id}`,
-              { reply_markup: KeyboardFactory.adminApproval(ctx.from.id) }
-            );
-          }
-        }
-      } catch (error) {
-        console.error("Failed to send admin notification:", error);
-      }
     } catch (error) {
       console.error("Error in registration:", error);
       await ctx.answerCallbackQuery("Error processing registration");
-      await ctx.reply("An error occurred during registration. Please try again with /start");
+      await ctx.reply("حدث خطأ أثناء التسجيل. حاول مرة أخرى باستخدام /start");
     }
   });
 
@@ -308,51 +282,15 @@ export function registerCallbackHandlers(bot: Bot<MyContext>): void {
     );
   });
 
-  // Handle registration status check
-  bot.callbackQuery("check_status", async (ctx) => {
-    if (!ctx.from) return await ctx.answerCallbackQuery("User not found");
-
-    try {
-      const user = await UserRepository.findUserByTelegramId(ctx.from.id);
-
-      if (!user) {
-        await ctx.editMessageText("You don't have a registration in our system. Use /start to register.", {
-          reply_markup: KeyboardFactory.register()
-        });
-        return await ctx.answerCallbackQuery();
-      }
-
-      if (user.isAccepted) {
-        // User was approved - different message from pending
-        await ctx.editMessageText(
-          "✅ Your account has been approved! You can now use all features of the bot.",
-          { parse_mode: "Markdown" }
-        );
-        ctx.session.step = "approved";
-        return await ctx.answerCallbackQuery("Account approved! ✅");
-      } else {
-        // Still pending - add current time to force text change
-        const currentTime = new Date().toLocaleTimeString();
-        await ctx.editMessageText(
-          `Your account is still pending approval. We'll notify you when an admin reviews your registration.\n\nLast checked: ${currentTime}`,
-          { reply_markup: new InlineKeyboard().text("🔍 Check Again", "check_status") }
-        );
-        return await ctx.answerCallbackQuery("Still pending approval. Please wait.");
-      }
-    } catch (error) {
-      console.error("Error in check_status handler:", error);
-      // If an error occurs, still provide feedback to user
-      if (error instanceof Error && error.message.includes("message is not modified")) {
-        // Just answer the callback without modifying the message
-        return await ctx.answerCallbackQuery("Status unchanged. Please try again later.");
-      }
-      return await ctx.answerCallbackQuery("Error checking status. Please try again.");
-    }
-  });
-  
   // Register command shortcut
   bot.callbackQuery("register", async (ctx) => {
-    await sendTermsAndConditions(ctx);
+    await ctx.editMessageText(
+      "*الشروط والأحكام*\n\nاستخدامك لهذا البوت يعني موافقتك على الشروط.\n\nاضغط موافق للاستمرار.",
+      {
+        parse_mode: "Markdown",
+        reply_markup: KeyboardFactory.terms()
+      }
+    );
     await ctx.answerCallbackQuery();
   });
 
@@ -362,7 +300,10 @@ export function registerCallbackHandlers(bot: Bot<MyContext>): void {
   
   // Handle main menu button press
   bot.callbackQuery("main_menu", async (ctx) => {
-    await sendWelcomeMessage(ctx);
+    await ctx.editMessageText(
+      "مرحبًا بك في بوت GameKey!\nاستخدم القائمة للبدء.",
+      { reply_markup: KeyboardFactory.mainMenu() }
+    );
     await ctx.answerCallbackQuery("Main menu displayed");
   });
   
@@ -374,7 +315,10 @@ export function registerCallbackHandlers(bot: Bot<MyContext>): void {
   
   // Handle help button
   bot.callbackQuery("help", async (ctx) => {
-    await showHelpInfo(ctx);
+    await ctx.editMessageText(
+      "*مساعدة*\n\n- لشراء منتج اختر من القائمة\n- للدعم تواصل مع @jeogo",
+      { parse_mode: "Markdown" }
+    );
     await ctx.answerCallbackQuery();
   });
 
@@ -453,3 +397,7 @@ async function notifyUserOfRejection(userId: number): Promise<void> {
     console.error(`Failed to notify user ${userId} of rejection:`, error);
   }
 }
+function sendWelcomeMessage(ctx: CallbackQueryContext<MyContext>) {
+  throw new Error("Function not implemented.");
+}
+

@@ -1,227 +1,213 @@
 import { InlineKeyboard } from "grammy";
-import { IOrder } from "../../models/Order";
+import { ICategory } from "../../models/Category";
 import { IProduct } from "../../models/Product";
+import { IOrder } from "../../models/Order";
 
 /**
- * Centralized keyboard factory for the bot
- * All keyboard creation is managed here to avoid duplication
+ * Factory for creating inline keyboards used throughout the bot
+ * Using consistent styling and icons for better UX
  */
-export class KeyboardFactory {
-  /**
-   * Terms acceptance keyboard
-   */
-  static terms(): InlineKeyboard {
-    return new InlineKeyboard()
-      .text("I Accept the Terms", "accept_terms")
-      .row()
-      .text("I Decline", "decline_terms");
+class KeyboardFactory {
+  static backToMain(): import("@grammyjs/types").InlineKeyboardMarkup | import("@grammyjs/types").ReplyKeyboardMarkup | import("@grammyjs/types").ReplyKeyboardRemove | import("@grammyjs/types").ForceReply | undefined {
+      throw new Error("Method not implemented.");
   }
-  static custom(buttons: Array<Array<{ text: string, callback_data: string }>>) {
-    return {
-      inline_keyboard: buttons
-    };}
-  /**
-   * Support keyboard
-   */
-  static support(): InlineKeyboard {
-    return new InlineKeyboard()
-      .text("Contact Support", "contact_support")
-      .row()
-      .text("Back to Main Menu", "main_menu");
+  static gcoinMenu(): import("@grammyjs/types").InlineKeyboardMarkup | undefined {
+      throw new Error("Method not implemented.");
+  }
+  static backButton(arg0: string, arg1: string): import("@grammyjs/types").InlineKeyboardMarkup | undefined {
+    throw new Error("Method not implemented.");
   }
   
   /**
-   * Registration keyboard
+   * Main menu keyboard with all primary options
    */
-  static register(): InlineKeyboard {
-    return new InlineKeyboard().text("Register", "register");
+  static mainMenu(): InlineKeyboard {
+    return new InlineKeyboard()
+      .text("🛒 Products", "view_categories").text("📦 My Orders", "view_orders").row()
+      .text("💰 GCoin Balance", "check_balance").text("👤 My Profile", "profile").row()
+      .text("🔄 Recharge GCoin", "buy_gcoin").text("👥 Referrals", "view_referrals").row()
+      .text("📞 Contact Support", "contact_support");
+  }
+  
+  /**
+   * Profile menu with profile-specific actions
+   */
+  static profileMenu(): InlineKeyboard {
+    return new InlineKeyboard()
+      .text("📥 Order History", "view_orders").text("📢 Invite Friends", "view_referrals").row()
+      .text("🔄 Refresh Data", "refresh_profile").text("🏠 Main Menu", "main_menu");
   }
 
   /**
-   * Admin approval keyboard
+   * Categories selection keyboard
    */
-  static adminApproval(userId: number): InlineKeyboard {
-    return new InlineKeyboard()
-      .text("Approve", `approve_user_${userId}`)
-      .text("Decline", `decline_user_${userId}`);
-  }
-  
-  /**
-   * Categories keyboard - displays product categories
-   */
-  static categories(categories: Array<{_id?: string, name: string}>): InlineKeyboard {
+  static categories(categories: ICategory[]): InlineKeyboard {
     const keyboard = new InlineKeyboard();
     
-    categories.forEach(category => {
-      keyboard.text(`${category.name}`, `category_${category._id}`).row();
-    });
-    
-    keyboard.text("Back to Main Menu", "main_menu");
-    
-    return keyboard;
-  }
-  
-  /**
-   * Products keyboard - displays products in a category
-   */
-  static products(products: Array<{_id?: string, name: string, price: number}>, categoryId: string): InlineKeyboard {
-    const keyboard = new InlineKeyboard();
-    
-    // Display products in a responsive grid (up to 10 per page)
-    const maxToDisplay = Math.min(products.length, 10);
-    
-    for (let i = 0; i < maxToDisplay; i++) {
-      const product = products[i];
-      keyboard.text(`${product.name}`, `product_${product._id}`).row();
-    }
-    
-    // Add navigation if needed
-    if (products.length > 10) {
-      keyboard.text("Next Page", `next_products_${categoryId}_10`);
-    }
-    
-    keyboard.row().text("Back to Categories", "view_categories");
-    
-    return keyboard;
-  }
-  
-  /**
-   * Orders keyboard - displays user orders
-   */
-  static orders(orders: Array<{_id?: string}>): InlineKeyboard {
-    const keyboard = new InlineKeyboard();
-    
-    if (orders.length === 0) {
-      return keyboard.text("Back to Main Menu", "main_menu");
-    }
-    
-    // Show up to 5 most recent orders
-    const recentOrders = orders.slice(0, 5);
-    
-    recentOrders.forEach(order => {
-      if (order._id) {
-        keyboard.text(`Order #${order._id.slice(-6)}`, `order_${order._id}`).row();
-      }
-    });
-    
-    keyboard.text("Back to Main Menu", "main_menu");
-    
-    return keyboard;
-  }
-
-  /**
-   * Orders keyboard with pagination - displays user orders with next/previous buttons
-   */
-  static ordersWithPagination(orders: Array<{_id?: string}>, currentPage: number, totalPages: number): InlineKeyboard {
-    const keyboard = new InlineKeyboard();
-    
-    // Show orders
-    orders.forEach(order => {
-      if (order._id) {
-        keyboard.text(`Order #${order._id.slice(-6)}`, `order_${order._id}`).row();
-      }
-    });
-    
-    // Add pagination row if needed
-    if (totalPages > 1) {
-      // Add previous button if not on first page
-      if (currentPage > 1) {
-        keyboard.text("Previous", `orders_page_${currentPage - 1}`);
-      }
+    // Add a button for each category, 2 per row
+    for (let i = 0; i < categories.length; i += 2) {
+      const cat1 = categories[i];
+      const cat2 = categories[i + 1];
       
-      // Add page indicator
-      keyboard.text(`${currentPage} / ${totalPages}`, `current_page_info`);
+      keyboard.text(`📁 ${cat1.name}`, `category_${cat1._id}`);
       
-      // Add next button if not on last page
-      if (currentPage < totalPages) {
-        keyboard.text("Next", `orders_page_${currentPage + 1}`);
+      if (cat2) {
+        keyboard.text(`📁 ${cat2.name}`, `category_${cat2._id}`);
       }
       
       keyboard.row();
     }
     
-    // Add back to main menu button
-    keyboard.text("Back to Main Menu", "main_menu");
+    // Add navigation buttons
+    keyboard.text("🏠 Main Menu", "main_menu");
     
     return keyboard;
-  }
-
-  /**
-   * Generic back button with customizable text
-   */
-  static backButton(destination: string, label: string = "Back"): InlineKeyboard {
-    return new InlineKeyboard().text(label, destination);
-  }
-
-  /**
-   * Back to main menu keyboard
-   */
-  static backToMain(): InlineKeyboard {
-    return new InlineKeyboard().text("Back to Main Menu", "main_menu");
   }
   
   /**
-   * Order details keyboard with support option
+   * Products list keyboard for a specific category
    */
-  static orderDetails(order: IOrder): InlineKeyboard {
+  static products(products: IProduct[], categoryId: string): InlineKeyboard {
     const keyboard = new InlineKeyboard();
     
-    // Only show support option if order exists
-    if (order._id) {
-      keyboard.text("Get Support for this Order", `support_order_${order._id}`);
-    }
+    // Add a button for each product, 1 per row
+    products.forEach(product => {
+      // Add status icon based on availability
+      const icon = product.isAvailable ? "✅" : (product.allowPreorder ? "⏳" : "❌");
+      keyboard.text(`${icon} ${product.name} - ${product.gcoinPrice} GCoin`, `product_${product._id}`).row();
+    });
     
-    keyboard.row().text("Back to Orders", "my_orders");
+    // Add navigation buttons
+    keyboard.text("⬅️ Back to Categories", "view_categories").row()
+      .text("🏠 Main Menu", "main_menu");
     
     return keyboard;
   }
-
+  
   /**
-   * Product detail keyboard - shows purchase & back buttons
+   * Product detail keyboard with purchase options
    */
   static productDetail(product: IProduct): InlineKeyboard {
     const keyboard = new InlineKeyboard();
     
-    // Only show purchase/preorder button if product is available or can be preordered
+    // Only show purchase button if product is available or allows preorders
     if (product.isAvailable || product.allowPreorder) {
-      const buttonText = product.isAvailable ? "Purchase Now" : "Pre-order Now";
-      keyboard.text(buttonText, `purchase_${product._id}`).row();
+      keyboard.text("🛒 Purchase Now", `purchase_${product._id}`).row();
     }
     
-    // Add back button to return to category
-    keyboard.text("Back to Products", "category_" + product.categoryId);
+    // Add navigation buttons
+    keyboard.text("⬅️ Back to Products", `category_${product.categoryId}`).row()
+      .text("🏠 Main Menu", "main_menu");
     
+    return keyboard;
+  }
+  
+  /**
+   * GCoin purchase options keyboard
+   */
+  static gcoinPurchaseOptions(): InlineKeyboard {
+    return new InlineKeyboard()
+      .text("💰 100 GCoin", "buy_gcoin_100").text("💰 200 GCoin", "buy_gcoin_200").row()
+      .text("💰 500 GCoin", "buy_gcoin_500").text("💰 1000 GCoin", "buy_gcoin_1000").row()
+      .text("💰 Custom Amount", "buy_gcoin_custom").row()
+      .text("🏠 Main Menu", "main_menu");
+  }
+
+  /**
+   * Payment link keyboard
+   */
+  static paymentLink(paymentUrl: string | undefined, transactionId: string): InlineKeyboard {
+    const keyboard = new InlineKeyboard();
+    if (paymentUrl) {
+      keyboard.url("💳 Pay Now", paymentUrl).row();
+    }
+    keyboard.text("✅ Confirm Payment", `check_payment_${transactionId}`).row();
+    keyboard.text("❌ Cancel Order", `cancel_payment_${transactionId}`);
     return keyboard;
   }
 
   /**
-   * Payment confirmation keyboard with attractive styling
+   * Transactions with pagination keyboard
    */
-  static paymentConfirmation(productName: string, productId: string, quantity: number): InlineKeyboard {
-    return new InlineKeyboard()
-      .text("Yes, Complete Purchase", `confirm_purchase_${productId}_${quantity}`)
-      .row()
-      .text("No, Cancel", "cancel_purchase");
+  static transactionsWithPagination(currentPage: number, totalPages: number): InlineKeyboard {
+    const keyboard = new InlineKeyboard();
+    if (totalPages > 1) {
+      if (currentPage > 1) {
+        keyboard.text("⬅️ Previous", `transactions_page_${currentPage - 1}`);
+      }
+      keyboard.text(`${currentPage} / ${totalPages}`, `current_page_info`);
+      if (currentPage < totalPages) {
+        keyboard.text("Next ➡️", `transactions_page_${currentPage + 1}`);
+      }
+      keyboard.row();
+    }
+    keyboard.text("🔙 Back", "my_gcoin");
+    return keyboard;
   }
 
   /**
-   * Payment link keyboard with attractively styled buttons
+   * GCoin balance keyboard
    */
-  static paymentLink(paymentUrl: string | undefined, transactionId: string): InlineKeyboard {
-    // Add fallback URL and null/undefined check
-    const safeUrl = paymentUrl || 'https://nowpayments.io';
-    
-    // Ensure the URL has a valid format (must start with http:// or https://)
-    const formattedUrl = safeUrl.startsWith('http') ? safeUrl : `https://${safeUrl}`;
-    
+  static gcoinBalance(balance: number): InlineKeyboard {
     return new InlineKeyboard()
-      .url("Complete Payment Securely", formattedUrl)
-      .row()
-      .text("Check Payment Status", `check_payment_${transactionId}`)
-      .row()
-      .text("Need Help?", "payment_support")
-      .row()
+      .text("💰 Buy More GCoin", "buy_gcoin").row()
+      .text("📋 Transaction History", "gcoin_transactions").row()
+      .text("🔙 Back to Main Menu", "main_menu");
+  }
+  
+  /**
+   * Confirm GCoin purchase keyboard
+   */
+  static confirmGcoinPurchase(productId: string, quantity: number = 1): InlineKeyboard {
+    return new InlineKeyboard()
+      .text("✅ Confirm Purchase", `confirm_gcoin_purchase_${productId}_${quantity}`).row()
+      .text("❌ Cancel", "cancel_purchase");
+  }
+
+  /**
+   * Referral menu keyboard
+   */
+  static referralMenu(): InlineKeyboard {
+    return new InlineKeyboard()
+      .text("🔗 Get Referral Link", "get_referral_link").row()
+      .text("📊 Referral Statistics", "referral_stats").row()
+      .text("🔙 Back to Main Menu", "main_menu");
+  }
+
+  /**
+   * Terms and conditions keyboard
+   */
+  static terms(): InlineKeyboard {
+    return new InlineKeyboard()
+      .text("I Accept the Terms", "accept_terms").row()
+      .text("I Decline", "decline_terms");
+  }
+
+  /**
+   * Support options keyboard
+   */
+  static support(): InlineKeyboard {
+    return new InlineKeyboard()
+      .text("Contact Support", "contact_support").row()
       .text("Back to Main Menu", "main_menu");
+  }
+
+  /**
+   * GCoin payment confirmation keyboard
+   */
+  static gcoinPaymentConfirmation(productName: string, productId: string, quantity: number): InlineKeyboard {
+    return new InlineKeyboard()
+      .text("✅ Yes, Pay with GCoin", `confirm_gcoin_purchase_${productId}_${quantity}`).row()
+      .text("❌ No, Cancel", "cancel_purchase");
+  }
+
+  /**
+   * Payment confirmation keyboard
+   */
+  static paymentConfirmation(productName: string, productId: string, quantity: number): InlineKeyboard {
+    return new InlineKeyboard()
+      .text("Yes, Complete Purchase", `confirm_purchase_${productId}_${quantity}`).row()
+      .text("No, Cancel", "cancel_purchase");
   }
 }
 

@@ -1,120 +1,247 @@
 /**
- * Static text messages used throughout the bot
- * Centralizing messages makes it easier to maintain and update them
+ * Centralized message constants
+ * All user-facing messages should be defined here for consistency and easier localization
  */
 
-export const messages = {
-  // Welcome and registration messages
-  welcome: `
-Welcome to our Digital Store!
+// Welcome messages
+export const WELCOME_MESSAGE = "Welcome to GameKey Store! 🎮";
+export const WELCOME_BACK_MESSAGE = "Welcome back to GameKey Store! 🎮";
 
-You can browse:
-• Digital Games
-• Subscription Services
-• Track your orders
-• Contact support
+// Registration messages
+export const TERMS_MESSAGE = "📜 **Terms of Service**\n\nPlease read and accept our terms of service to continue.";
+export const TERMS_ACCEPTED = "✅ Terms accepted. Your account is being reviewed.";
+export const TERMS_REJECTED = "❌ You need to accept the terms to use our services.";
 
-*How to use:*
-1. Choose a category
-2. Browse products
-3. Select a product
-4. Complete purchase
-5. Receive your product instantly
-`,
+// Support messages
+export const SUPPORT_INTRO = "How can we help you today?";
+export const SUPPORT_REQUEST_RECEIVED = "Your support request has been received. Our team will contact you shortly.";
 
-  terms: `
-Welcome to our Digital Store!
+// Order messages
+export const ORDER_CREATED = "✅ Your order has been created successfully!";
+export const ORDER_DETAILS = "Order details:";
+export const NO_ORDERS = "You don't have any orders yet. Browse our products with /products";
+export const ORDER_PAYMENT_PENDING = "⏳ Your payment is being processed.";
+export const ORDER_COMPLETED = "✅ Your order has been completed!";
+export const ORDER_CANCELLED = "❌ This order has been cancelled.";
 
-*Terms and Conditions:*
-• You must be 18 years or older to use this service
-• All products are digital and non-refundable
-• Reselling of our products is prohibited
-• We reserve the right to cancel accounts violating our terms
+// Product messages
+export const PRODUCT_NOT_FOUND = "Sorry, this product could not be found.";
+export const PRODUCT_OUT_OF_STOCK = "Sorry, this product is currently out of stock.";
+export const SELECT_PRODUCT_CATEGORY = "Please select a product category:";
+export const SELECT_PRODUCT = "Select a product to view details:";
 
-Do you agree to these terms and conditions?
-`,
+// Error messages
+export const GENERIC_ERROR = "Sorry, an error occurred. Please try again later.";
+export const SESSION_EXPIRED = "Your session has expired. Please start again with /start.";
+export const INVALID_COMMAND = "Sorry, I don't understand that command.";
+export const UNAUTHORIZED = "You are not authorized to use this command.";
 
-  pendingApproval: `Your registration is pending approval. Please wait for admin confirmation.`,
+// Payment messages
+export const PAYMENT_INIT = "🔐 Preparing your payment...";
+export const PAYMENT_SUCCESS = "✅ Payment successful!";
+export const PAYMENT_FAILED = "❌ Payment failed. Please try again.";
+export const PAYMENT_CANCELLED = "Payment cancelled by user.";
+export const PAYMENT_PENDING = "Payment is pending confirmation.";
+
+// GCoin messages
+export const GCOIN_BALANCE = "Your current GCoin balance is:";
+export const GCOIN_INSUFFICIENT = "Insufficient GCoin balance. Please add more GCoin.";
+export const GCOIN_ADDED = "GCoin added successfully to your account!";
+export const GCOIN_DEDUCTED = "GCoin deducted from your account for purchase.";
+
+// Referral messages
+export const REFERRAL_LINK = "Share this link to invite friends:";
+export const REFERRAL_BONUS_EARNED = "You earned a referral bonus!";
+export const REFERRAL_WELCOME = "Welcome! You've been invited by a friend.";
+
+/**
+ * Utility functions for formatting bot messages consistently
+ */
+
+import { formatGcoin, formatNumber, formatPrice } from "../../utils/formatters";
+
+/**
+ * Creates a branded header for all bot messages
+ */
+export function createHeader(title: string): string {
+  return `🌟 *GameKey* 🌟\n━━━━━━━━━━━━━━\n*${title}*\n`;
+}
+
+/**
+ * Creates a branded footer for all bot messages
+ */
+export function createFooter(): string {
+  return "\n━━━━━━━━━━━━━━\n🔹 *GameKey Bot* - Your Gaming Marketplace";
+}
+
+/**
+ * Formats an error message consistently
+ * @param message Error message to display
+ */
+export function errorMessage(message: string): string {
+  return `${createHeader("Error")}❌ ${message}${createFooter()}`;
+}
+
+/**
+ * Formats a success message consistently
+ * @param message Success message to display
+ */
+export function successMessage(message: string): string {
+  return `${createHeader("Success")}✅ ${message}${createFooter()}`;
+}
+
+/**
+ * Formats a notification message consistently
+ * @param title Notification title
+ * @param message Notification message to display
+ */
+export function notificationMessage(title: string, message: string): string {
+  return `${createHeader(title)}📢 ${message}${createFooter()}`;
+}
+
+/**
+ * Formats a warning message consistently
+ * @param message Warning message to display
+ */
+export function warningMessage(message: string): string {
+  return `${createHeader("Warning")}⚠️ ${message}${createFooter()}`;
+}
+
+/**
+ * Creates a formatted profile display
+ * @param user The user object with profile information
+ * @param referralLink The user's referral link
+ */
+export function formatProfileMessage(user: any, referralLink: string): string {
+  const accountStatus = user.isActive ? "✅ Active" : "❌ Inactive";
   
-  registrationReceived: `
-Your registration has been received!
+  return `${createHeader("User Profile")}
+📛 *Name:* ${user.name || user.username || "Not Set"}
 
-An administrator will review your request shortly.
-You will be notified once your account is approved.
-`,
+💰 *Balance:* ${formatGcoin(user.gcoinBalance)}
 
-  registrationRejected: `
-Unfortunately, your registration was rejected. 
+💵 *Total Recharged:* ${formatGcoin(user.totalRecharge || 0)}
 
-Possible reasons:
-• Incomplete information
-• Suspicious activity
-• Previous terms violations
+📦 *Orders:* ${formatNumber(user.orderCount || 0)} 
 
-For more information, please contact support.
-`,
+✅ *Account Status:* ${accountStatus}
 
-  registrationApproved: `
-Good news! Your account has been approved
+🔗 *Referral Link:*
+\`${referralLink}\`
+${createFooter()}`;
+}
 
-You now have full access to our digital store.
-Use the menu below to start shopping.
-`,
+/**
+ * Creates a formatted product display
+ * @param product The product object to display
+ */
+export function formatProductMessage(product: any): string {
+  // Determine availability status
+  const statusText = product.isAvailable 
+    ? "✅ In Stock"
+    : product.allowPreorder ? "⏳ Available for Pre-order" : "❌ Out of Stock";
+    
+  // Format the product description
+  return `${createHeader(product.name)}
+${statusText}
 
-  // Error messages
-  userNotFound: `Unable to identify user.`,
-  notRegistered: `You don't have a profile yet. Use /start to register.`,
-  pendingUser: `Your account is pending approval. Please wait for admin confirmation.`,
+💬 *Description:*
+${product.description || "No description available."}
+
+💰 *Price:* ${formatPrice(product.gcoinPrice)}
+
+📋 *Category:* ${product.categoryName || "Uncategorized"}${createFooter()}`;
+}
+
+/**
+ * Creates a formatted order summary
+ * @param order The order object to display
+ */
+export function formatOrderMessage(order: any): string {
+  // Format order date
+  const orderDate = new Date(order.createdAt).toLocaleDateString();
   
-  // Help messages
-  help: `
-*Available Commands:*
-/start - Start shopping and see main menu
-/help - Show this help message
-/orders - View your order history
+  // Format order status with appropriate emoji
+  let statusEmoji = "⏳";
+  if (order.status === "completed") statusEmoji = "✅";
+  if (order.status === "cancelled") statusEmoji = "❌";
+  if (order.status === "refunded") statusEmoji = "💸";
+  
+  return `${createHeader(`Order #${order.orderId || order._id}`)}
+${statusEmoji} *Status:* ${order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+
+📅 *Date:* ${orderDate}
+
+🏷️ *Product:* ${order.productName}
+
+💰 *Amount:* ${formatGcoin(order.amount)}${createFooter()}`;
+}
+
+/**
+ * Creates a formatted welcome message
+ * @param username The user's name or username
+ */
+export function formatWelcomeMessage(username: string): string {
+  return `${createHeader("Welcome")}👋 Hello, *${username}*!
+
+Welcome to GameKey - your one-stop marketplace for gaming products.
+
+🎮 Browse our *Products*
+💰 Buy with *GCoin*
+📦 Track your *Orders*
+👥 Invite friends with *Referrals*
+
+Need help? Use /help command or contact our support team.${createFooter()}`;
+}
+
+/**
+ * Creates a formatted help message
+ */
+export function formatHelpMessage(): string {
+  return `${createHeader("Help & Commands")}
+Here are the available commands:
+
+/start - Start the bot and see welcome message
+/menu - Show main menu with all options
 /profile - View your profile information
-/support - Contact customer support
+/products - Browse available products
+/orders - View your order history
+/gcoin - Manage your GCoin balance
+/referrals - Access your referral program
+/help - Show this help message
+/support - Contact customer support${createFooter()}`;
+}
 
-*How to use the store:*
-1. Browse categories and products
-2. Select products you want to purchase
-3. Complete payment
-4. Receive your digital products instantly
-
-Need more help? Use the /support command to contact us.
-`,
-
-  // Support messages
-  support: `
-*Need Help?*
-
-For any questions or assistance with your orders, you can:
-
-1. Check our FAQ section
-2. Open a support ticket
-3. Send us a direct message
-
-Our support team is available 24/7 to assist you with any issues.
-`,
-
-  // Product and category messages
-  noCategories: `No categories available in this section.`,
-  noProducts: `No products available in this category.`,
-  productNotFound: `Product not found or no longer available.`,
+/**
+ * Creates a formatted transaction confirmation
+ * @param transaction The transaction details
+ */
+export function formatTransactionMessage(transaction: any): string {
+  const txDate = new Date(transaction.createdAt).toLocaleDateString();
   
-  // Order messages
-  noOrders: `You don't have any orders yet. Use /start to browse products.`,
-  orderCreated: `Your order has been successfully created! You'll receive your product shortly.`,
-  
-  // Payment messages
-  paymentInstructions: `
-Please complete your payment using one of the available methods.
-Your order will be processed once payment is confirmed.
-`,
+  return `${createHeader("Transaction Successful")}
+✅ *Transaction ID:* ${transaction._id}
 
-  // Profile messages
-  profileHeader: `
-*Your Profile*
+💰 *Amount:* ${formatGcoin(transaction.amount)}
 
-`,
-};
+📅 *Date:* ${txDate}
+
+📝 *Type:* ${transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1)}
+
+Thank you for using GameKey!${createFooter()}`;
+}
+
+/**
+ * Creates a formatted referral statistics message
+ * @param referralStats The referral statistics to display
+ */
+export function formatReferralStatsMessage(referralStats: any): string {
+  return `${createHeader("Referral Statistics")}
+👥 *Total Referrals:* ${formatNumber(referralStats.totalReferrals)}
+
+✅ *Active Referrals:* ${formatNumber(referralStats.activeReferrals)}
+
+💰 *Earnings:* ${formatGcoin(referralStats.totalEarnings)}
+
+Keep sharing your referral link to earn more rewards!${createFooter()}`;
+}

@@ -50,6 +50,15 @@ export async function findOrdersByUserId(userId: string, page = 1, limit = 20): 
   return findOrders({ userId }, page, limit);
 }
 
+/**
+ * Count orders by user ID
+ */
+export async function countOrdersByUser(userId: string): Promise<number> {
+  await connectToDatabase();
+  const collection = getDb().collection('orders');
+  return await collection.countDocuments({ userId });
+}
+
 // Create a new order
 export async function createOrder(orderData: {
   userId: string;

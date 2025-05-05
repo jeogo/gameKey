@@ -6,6 +6,11 @@ import * as OrderRepository from "../../repositories/OrderRepository";
 import { IPaymentTransaction } from "../../models/PaymentTransaction";
 import KeyboardFactory from "../keyboards";
 import { NotificationService } from "../services/NotificationService";
+import { Bot } from "grammy";
+import { MyContext } from "../types/session";
+import { PurchaseService } from "../services/PurchaseService";
+import { handleGcoinPurchaseSuccess } from "../commands/gcoin";
+import { nowPaymentsService } from "../../services/NowPaymentsService";
 
 /**
  * Handle successful payment completion
@@ -207,7 +212,7 @@ async function sendDigitalContentDelivery(
     // Send the message
     await bot.api.sendMessage(userId, message, {
       parse_mode: "Markdown",
-      reply_markup: KeyboardFactory.backToMain()
+      reply_markup: KeyboardFactory.mainMenu()
     });
   } catch (error) {
     console.error(`Failed to send digital content to user ${userId}:`, error);
@@ -237,7 +242,7 @@ You'll receive a notification when your pre-order is ready for delivery.
 
     await bot.api.sendMessage(userId, message, {
       parse_mode: "Markdown",
-      reply_markup: KeyboardFactory.backToMain()
+      reply_markup: KeyboardFactory.mainMenu()
     });
   } catch (error) {
     console.error(`Failed to send preorder confirmation to user ${userId}:`, error);
@@ -305,4 +310,195 @@ export async function processPaymentWebhook(
     console.error("Error processing payment webhook:", error);
     return false;
   }
+}
+
+/**
+ * Register all payment related handlers
+ */
+export function registerPaymentHandlers(bot: Bot<MyContext>): void {
+  // Handle payment confirmation clicked by user
+  bot.callbackQuery(/^check_payment_(.+)$/, async (ctx) => {
+    const paymentId = ctx.match![1];
+    
+    try {
+      // Get transaction from database
+      const transaction = await PaymentRepository.findTransactionById(paymentId);
+      
+      if (!transaction) {
+        await ctx.editMessageText("Payment transaction not found. Please try again or contact support.");
+        await ctx.answerCallbackQuery("Transaction not found");
+        return;
+      }
+      
+      // Check payment status via API
+      const providerStatus = await nowPaymentsService.getPaymentStatus(transaction.providerTransactionId || "");
+      
+      // Update our transaction status
+      await PaymentRepository.updateTransactionStatus(
+        paymentId,
+        providerStatus,
+        { updatedAt: new Date() }
+      );
+      
+      // Handle based on status
+      if (providerStatus === 'completed') {
+        // Check if this is a GCoin purchase
+        if (transaction.metadata?.type === 'buy_gcoin') {
+          // Handle GCoin purchase
+          const gcoinAmount = transaction.metadata.gcoinAmount;
+          const success = await handleGcoinPurchaseSuccess(
+            transaction.userId,
+            gcoinAmount,
+            paymentId
+          );
+          
+          if (success) {
+            await ctx.editMessageText(
+              "✅ Payment verified and GCoin has been successfully added to your balance!",
+              { reply_markup: { inline_keyboard: [] } }
+            );
+          } else {
+            await ctx.editMessageText(
+              "⚠️ Payment verified but there was an error adding GCoin. Please contact support.",
+              { reply_markup: { inline_keyboard: [] } }
+            );
+          }
+        } else {
+          // Regular product purchase
+          // Handle order creation and product delivery
+          // (implementation depends on your order processing logic)
+          
+          await ctx.editMessageText(
+            "✅ Payment verified. Your order is now being processed...",
+            { reply_markup: { inline_keyboard: [] } }
+          );
+          
+          // Create order if needed
+          // Deliver digital product if available
+          // TODO: Implement your order processing logic
+        }
+      } else if (providerStatus === 'pending') {
+        await ctx.editMessageText(
+          "⌛ Payment is being processed. Please wait and check again after a few minutes.",
+          { reply_markup: { inline_keyboard: [ [{ text: "✅ Check Again", callback_data: `check_payment_${paymentId}` }] ] } }
+        );
+      } else {
+        // Failed, cancelled, etc.
+        await ctx.editMessageText(
+          "❌ Payment failed or was cancelled. Please try again or contact support.",
+          { reply_markup: { inline_keyboard: [] } }
+        );
+      }
+      
+      await ctx.answerCallbackQuery("Payment status checked!");
+    } catch (error) {
+      console.error("Error checking payment status:", error);
+      await ctx.editMessageText("An error occurred while checking the payment status. Please try again later.");
+      await ctx.answerCallbackQuery("An error occurred");
+    }
+  });
+  
+  // Handle purchase confirmation for GCoin
+  bot.callbackQuery(/^confirm_gcoin_purchase_(.+)_(\d+)$/, async (ctx) => {
+    try {
+      const productId = ctx.match![1];
+      const quantity = parseInt(ctx.match![2]);
+      
+      // Check if quantity is valid
+      if (isNaN(quantity) || quantity <= 0) {
+        await ctx.answerCallbackQuery("Invalid quantity");
+        return;
+      }
+      
+      // Update message while processing
+      await ctx.editMessageText("Processing your request, please wait...");
+      
+      // Complete purchase with GCoin
+      const success = await PurchaseService.completePurchaseWithGcoin(ctx, productId, quantity);
+      
+      // Result is handled inside completePurchaseWithGcoin method
+      await ctx.answerCallbackQuery(success ? "Purchase completed!" : "An error occurred while processing the request");
+      
+    } catch (error) {
+      console.error("Error confirming GCoin purchase:", error);
+      await ctx.reply("An error occurred while processing the purchase request. Please try again later.");
+      await ctx.answerCallbackQuery("An error occurred");
+    }
+  });
+  
+  // Handle payment confirmation clicked by user (legacy/non-GCoin purchase)
+  bot.callbackQuery(/^confirm_purchase_(.+)_(\d+)$/, async (ctx) => {
+    try {
+      const productId = ctx.match![1];
+      const quantity = parseInt(ctx.match![2]);
+      
+      // Check if quantity is valid
+      if (isNaN(quantity) || quantity <= 0) {
+        await ctx.answerCallbackQuery("Invalid quantity");
+        return;
+      }
+      
+      // Update message while processing
+      await ctx.editMessageText("Processing your request, please wait...");
+      
+      // Enforce GCoin-only purchase
+      const success = await PurchaseService.initiateProductPurchaseWithGcoin(ctx, productId, quantity);
+      
+      // Result is handled inside initiateProductPurchaseWithGcoin method
+      await ctx.answerCallbackQuery(success ? "Order processed!" : "An error occurred");
+      
+    } catch (error) {
+      console.error("Error confirming purchase:", error);
+      await ctx.reply("An error occurred while processing the purchase request. Please try again later.");
+      await ctx.answerCallbackQuery("An error occurred");
+    }
+  });
+  
+  // Handle purchase cancellation
+  bot.callbackQuery("cancel_purchase", async (ctx) => {
+    await ctx.editMessageText("Order has been cancelled. You can continue browsing or choose another product.");
+    await ctx.answerCallbackQuery("Cancelled");
+  });
+  
+  // Handle payment cancellation
+  bot.callbackQuery(/^cancel_payment_(.+)$/, async (ctx) => {
+    const paymentId = ctx.match![1];
+    
+    try {
+      // Update payment status in database
+      await PaymentRepository.updateTransactionStatus(
+        paymentId,
+        'cancelled',
+        { updatedAt: new Date() }
+      );
+      
+      await ctx.editMessageText("Payment has been cancelled. You can continue browsing or try again later.");
+      await ctx.answerCallbackQuery("Payment cancelled");
+    } catch (error) {
+      console.error("Error cancelling payment:", error);
+      await ctx.reply("An error occurred while cancelling the payment. Please try again.");
+      await ctx.answerCallbackQuery("An error occurred");
+    }
+  });
+  
+  // Handle direct purchases with GCoin
+  bot.callbackQuery(/^purchase_gcoin_(.+)$/, async (ctx) => {
+    try {
+      const productId = ctx.match![1];
+      
+      // Default to quantity 1 for direct purchases
+      const quantity = 1;
+      
+      // Initiate GCoin product purchase
+      const success = await PurchaseService.initiateProductPurchaseWithGcoin(ctx, productId, quantity);
+      
+      // Result is handled inside initiateProductPurchaseWithGcoin method
+      await ctx.answerCallbackQuery(success ? "Preparing your order" : "An error occurred");
+      
+    } catch (error) {
+      console.error("Error initiating GCoin purchase:", error);
+      await ctx.reply("An error occurred while preparing the purchase. Please try again later.");
+      await ctx.answerCallbackQuery("An error occurred");
+    }
+  });
 }

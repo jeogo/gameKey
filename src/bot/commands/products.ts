@@ -3,6 +3,7 @@ import { MyContext } from "../types/session";
 import * as CategoryRepository from "../../repositories/CategoryRepository";
 import * as ProductRepository from "../../repositories/ProductRepository";
 import KeyboardFactory from "../keyboards";
+import * as UserRepository from "../../repositories/UserRepository";
 import { PurchaseService } from "../services/PurchaseService";
 
 /**
@@ -10,77 +11,77 @@ import { PurchaseService } from "../services/PurchaseService";
  */
 export async function showCategories(ctx: MyContext): Promise<void> {
   try {
-    const categories = await CategoryRepository.findAllCategories();
+    // First, verify user is accepted
+    if (!ctx.from) return;
     
-    if (categories.length === 0) {
-      if (ctx.callbackQuery) {
-        await ctx.editMessageText("No product categories available at the moment.");
-      } else {
-        await ctx.reply("No product categories available at the moment.");
-      }
+    const user = await UserRepository.findUserByTelegramId(ctx.from.id);
+    if (!user) {
+      await ctx.reply("Please use /start to register first.");
       return;
     }
     
-    const categoriesText = "*📂 Product Categories*\n\nPlease select a category to browse:";
+    // Fetch categories
+    const categories = await CategoryRepository.findAllCategories();
     
+    // Format message and keyboard
+    let message = "🏪 *Product Categories*\n\nChoose one of the following categories:";
+    const keyboard = KeyboardFactory.categories(categories);
+    
+    // Determine response type (new message vs edit message)
     if (ctx.callbackQuery) {
-      await ctx.editMessageText(categoriesText, {
+      await ctx.editMessageText(message, {
         parse_mode: "Markdown",
-        reply_markup: KeyboardFactory.categories(categories)
+        reply_markup: keyboard
       });
+      await ctx.answerCallbackQuery();
     } else {
-      await ctx.reply(categoriesText, {
+      await ctx.reply(message, {
         parse_mode: "Markdown",
-        reply_markup: KeyboardFactory.categories(categories)
+        reply_markup: keyboard
       });
     }
   } catch (error) {
-    console.error("Error fetching categories:", error);
-    const errorMsg = "Sorry, an error occurred while retrieving product categories.";
-    if (ctx.callbackQuery) {
-      await ctx.editMessageText(errorMsg);
-    } else {
-      await ctx.reply(errorMsg);
-    }
+    console.error("Error showing categories:", error);
+    await ctx.reply("Sorry, an error occurred while fetching product categories. Please try again later.");
   }
 }
 
 /**
  * Show products in a specific category
  */
-export async function showProductsInCategory(ctx: MyContext, categoryId: string, offset = 0): Promise<void> {
+export async function showProductsInCategory(ctx: MyContext, categoryId: string): Promise<void> {
   try {
+    // Get products in the category
+    const products = await ProductRepository.findProductsByCategoryId(categoryId);
     const category = await CategoryRepository.findCategoryById(categoryId);
     
-    if (!category) {
-      await ctx.editMessageText("Category not found. Please choose from available categories:", {
-        reply_markup: KeyboardFactory.categories([])
+    // Format message
+    const categoryName = category?.name || "Unknown Category";
+    let message = `📋 *Products in ${categoryName}*\n\nSelect a product to view details:`;
+    
+    // Create keyboard with products
+    const keyboard = KeyboardFactory.products(products, categoryId);
+    
+    // Store current category ID in session
+    ctx.session.currentCategoryId = categoryId;
+    
+    // Send or edit message based on context
+    if (ctx.callbackQuery) {
+      await ctx.editMessageText(message, {
+        parse_mode: "Markdown", 
+        reply_markup: keyboard
       });
-      return;
+      await ctx.answerCallbackQuery();
+    } else {
+      await ctx.reply(message, {
+        parse_mode: "Markdown",
+        reply_markup: keyboard
+      });
     }
     
-    const products = await ProductRepository.findProducts({ categoryId: categoryId });
-    
-    if (products.length === 0) {
-      await ctx.editMessageText(`No products found in ${category.name}. Please choose another category:`, {
-        reply_markup: KeyboardFactory.categories([category])
-      });
-      return;
-    }
-    
-    // Get paginated products
-    const pageSize = 10;
-    const paginatedProducts = products.slice(offset, offset + pageSize);
-    
-    const productsText = `*${category.name} - Products*\n\nPlease select a product to view details:`;
-    
-    await ctx.editMessageText(productsText, {
-      parse_mode: "Markdown",
-      reply_markup: KeyboardFactory.products(paginatedProducts, categoryId)
-    });
   } catch (error) {
-    console.error("Error fetching products for category:", error);
-    await ctx.editMessageText("Sorry, an error occurred while retrieving products.");
+    console.error("Error showing products in category:", error);
+    await ctx.reply("Sorry, an error occurred while displaying products. Please try again later.");
   }
 }
 
@@ -92,18 +93,18 @@ export async function showProductDetails(ctx: MyContext, productId: string): Pro
     const product = await ProductRepository.findProductById(productId);
     
     if (!product) {
-      await ctx.editMessageText("Product not found. Please choose from available products:", {
+      await ctx.editMessageText("Product not found. Please select a product from the available products:", {
         reply_markup: KeyboardFactory.categories([])
       });
       return;
     }
     
-    // حساب حالة المنتج
+    // Calculate product status
     const availability = product.isAvailable 
-      ? "✅ In Stock"
-      : (product.allowPreorder ? "⏳ Available for Pre-order" : "❌ Out of Stock");
+      ? "✅ Available"
+      : (product.allowPreorder ? "⏳ Available for pre-order" : "❌ Not available");
     
-    // حساب الكمية المتوفرة
+    // Calculate available quantity
     const quantity = product.isAvailable 
       ? (product.digitalContent?.length || 0)
       : 0;
@@ -113,10 +114,10 @@ export async function showProductDetails(ctx: MyContext, productId: string): Pro
 
 📝 *Description:* ${product.description || "No description available."}
 
-💰 *Price:* $${product.price}
+💰 *Price:* ${product.gcoinPrice} GCoin
 📦 *Status:* ${availability}
 🔢 *Available Quantity:* ${quantity}
-${product.allowPreorder && !product.isAvailable ? `\n⏳ *Pre-order Note:* ${product.preorderNote || "This item will be available soon."}` : ""}
+${product.allowPreorder && !product.isAvailable ? `\n⏳ *Pre-order Note:* ${product.preorderNote || "This product will be available soon."}` : ""}
 
 ${product.additionalInfo ? `\n📋 *Additional Info:*\n${product.additionalInfo}` : ""}
 `;
@@ -144,60 +145,23 @@ export async function purchaseProduct(ctx: MyContext, productId: string, quantit
 }
 
 export function registerProductsCommand(bot: Bot<MyContext>): void {
-  // Main products command - shows categories
-  bot.command("products", async (ctx) => {
-    await showCategories(ctx);
-  });
+  // Show all categories
+  bot.command("products", showCategories);
+  bot.callbackQuery("view_categories", showCategories);
   
-  // Handle category selection
+  // Show products in a specific category
   bot.callbackQuery(/^category_(.+)$/, async (ctx) => {
-    if (!ctx.from) return await ctx.answerCallbackQuery("User not found");
-    
-    try {
-      const categoryId = ctx.match[1];
-      await showProductsInCategory(ctx, categoryId);
-      await ctx.answerCallbackQuery();
-    } catch (error) {
-      console.error("Error showing products:", error);
-      await ctx.answerCallbackQuery("Error loading products. Please try again.");
-    }
+    const categoryId = ctx.match![1];
+    await showProductsInCategory(ctx, categoryId);
   });
   
-  // Handle product selection
+  // Show product details
   bot.callbackQuery(/^product_(.+)$/, async (ctx) => {
-    if (!ctx.from) return await ctx.answerCallbackQuery("User not found");
-    
-    try {
-      const productId = ctx.match[1];
-      await showProductDetails(ctx, productId);
-      await ctx.answerCallbackQuery();
-    } catch (error) {
-      console.error("Error showing product details:", error);
-      await ctx.answerCallbackQuery("Error loading product details. Please try again.");
-    }
-  });
-  
-  // Handle back to categories button
-  bot.callbackQuery("view_categories", async (ctx) => {
-    await showCategories(ctx);
+    const productId = ctx.match![1];
+    await showProductDetails(ctx, productId);
     await ctx.answerCallbackQuery();
   });
-  
-  // Handle pagination for products
-  bot.callbackQuery(/^next_products_(.+)_(\d+)$/, async (ctx) => {
-    if (!ctx.from) return await ctx.answerCallbackQuery("User not found");
-    
-    try {
-      const categoryId = ctx.match[1];
-      const offset = parseInt(ctx.match[2]);
-      await showProductsInCategory(ctx, categoryId, offset);
-      await ctx.answerCallbackQuery();
-    } catch (error) {
-      console.error("Error loading more products:", error);
-      await ctx.answerCallbackQuery("Error loading more products. Please try again.");
-    }
-  });
-  
+
   // Handle main menu button
   bot.callbackQuery("main_menu", async (ctx) => {
     await ctx.editMessageText(

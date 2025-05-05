@@ -1,45 +1,41 @@
 import { Context, SessionFlavor } from "grammy";
-import { ISession } from "@grammyjs/storage-mongodb";
 
-// Define session data structure that extends ISession
-export interface SessionData extends ISession {
-  _id: { $oid: string; };
-  key: string;
-  value: any;
-  lastStep: string;
-  step:
-    | "pending"
-    | "terms"
-    | "approved"
-    | "browsing"
-    | "checkout"
-    | "product_view"
-    | "selecting_category"
-    | "selecting_product"
-    | "confirming_order"
-    | "awaiting_crypto_hash";
-  lastCategoryId?: string;
-  lastProductId?: string;
-  lastOrderId?: string;
-  userId?: string;
-  tempData: Record<string, any>;
-  payCurrency?: string;
-}
-
-// Initial session data creator
-export function createInitialSessionData(): SessionData {
-  return {
-    _id: { $oid: "" }, // Add empty _id field
-    lastStep: "",
-    step: "pending",
-    tempData: {},
-    // Add required ISession fields
-    key: "", // Provide a non-undefined value for key
-    value: undefined
+/**
+ * Session data for the bot
+ */
+export interface SessionData {
+  // Conversation state
+  step?: "terms" | "pending" | "approved" | "support" | "buy_gcoin_custom";
+  
+  // For product browsing
+  currentCategoryId?: string;
+  currentProductId?: string;
+  
+  // For payment
+  payCurrency?: string; // User's preferred payment currency
+  
+  // Temporary data storage
+  tempData?: {
+    orderNote?: string;
+    gcoinAmount?: number;
   };
 }
 
-// Define context type with session data
+// Create a custom context type with session data
 export type MyContext = Context & SessionFlavor<SessionData>;
+
+// Initial session data
+export function createInitialSessionData(): SessionData {
+  return {
+    // Default state is undefined - will start with terms acceptance
+    step: undefined,
+    
+    // Default payment currency is USDT
+    payCurrency: "usdt",
+    
+    // Empty temporary data
+    tempData: {}
+  };
+}
 
 

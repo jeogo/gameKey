@@ -101,6 +101,14 @@ export async function deleteProduct(id: string): Promise<boolean> {
   }
 }
 
+// Find products by category ID
+export async function findProductsByCategoryId(categoryId: string): Promise<IProduct[]> {
+  await connectToDatabase();
+  const collection = getDb().collection('products');
+  const products = await collection.find({ category: categoryId }).toArray();
+  return products.map(p => mapProduct(p)).filter((p): p is IProduct => p !== null);
+}
+
 export interface Product {
   isAvailable: boolean;
   allowPreorder?: boolean;
