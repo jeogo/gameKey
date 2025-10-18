@@ -2,11 +2,11 @@ import { IProduct } from '../models/Product';
 import * as ProductRepository from '../repositories/ProductRepository';
 
 /**
- * Get all products
+ * Get all products with optional filtering
  */
-export async function getAllProducts(): Promise<IProduct[]> {
+export async function getAllProducts(filter: any = {}): Promise<IProduct[]> {
   try {
-    return await ProductRepository.findAllProducts();
+    return await ProductRepository.findAllProducts(filter);
   } catch (error) {
     console.error('Error getting products:', error);
     throw error;
@@ -26,7 +26,7 @@ export async function getProductById(id: string): Promise<IProduct | null> {
 }
 
 /**
- * Create a new product
+ * Create a new product - Simplified
  */
 export async function createProduct(data: {
   name: string;
@@ -35,13 +35,9 @@ export async function createProduct(data: {
   description?: string;
   isAvailable: boolean;
   digitalContent: string[];
-  allowPreorder: boolean;
 }): Promise<IProduct> {
   try {
-    return await ProductRepository.createProduct({
-      ...data,
-      additionalInfo: '' // Provide a default or appropriate value for additionalInfo
-    });
+    return await ProductRepository.createProduct(data);
   } catch (error) {
     console.error('Error creating product:', error);
     throw error;

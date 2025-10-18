@@ -1,403 +1,405 @@
-import { Bot, CallbackQueryContext, InlineKeyboard } from "grammy";
+import { Bot, InlineKeyboard } from "grammy";
 import { MyContext } from "../types/session";
-import * as OrderRepository from "../../repositories/OrderRepository";
-import * as ProductRepository from "../../repositories/ProductRepository";
-import * as UserRepository from "../../repositories/UserRepository";
-import * as PaymentRepository from "../../repositories/PaymentRepository";
-import * as PaymentController from "../../controllers/PaymentController";
-import KeyboardFactory from "../keyboards";
-import { bot } from "../../bot";
+import { showCategories, showProductsInCategory, showProductDetails, showPurchaseConfirmation } from "../commands/products";
 import { PurchaseService } from "../services/PurchaseService";
-import { isAdmin } from "../../utils/adminUtils";
-import { showOrdersPage, showOrderDetail } from "../commands/orders";
-import { showCategories, showProductsInCategory, showProductDetails, purchaseProduct } from "../commands/products";
-import { showContactInfo } from "../commands/support";
+import * as PaymentRepository from "../../repositories/PaymentRepository";
+import * as ProductRepository from "../../repositories/ProductRepository";
+import * as OrderRepository from "../../repositories/OrderRepository";
+import * as UserRepository from "../../repositories/UserRepository";
+import { nowPaymentsService } from "../../services/NowPaymentsService";
+// Note: Payment handling functions are now in enhancedPaymentHandlers.ts
 
 /**
- * Register all callback handlers for the bot
+ * Callback handlers for product navigation and purchase flow
  */
 export function registerCallbackHandlers(bot: Bot<MyContext>): void {
-  // =====================================
-  // Category and Product Related Callbacks
-  // =====================================
   
   // Handle category selection
   bot.callbackQuery(/^category_(.+)$/, async (ctx) => {
-    if (!ctx.from) return await ctx.answerCallbackQuery("User not found");
-    
-    try {
-      const categoryId = ctx.match[1];
-      await showProductsInCategory(ctx, categoryId);
-      await ctx.answerCallbackQuery();
-    } catch (error) {
-      console.error("Error showing products:", error);
-      await ctx.answerCallbackQuery("Error loading products. Please try again.");
-    }
+    const categoryId = ctx.match[1];
+    await showProductsInCategory(ctx, categoryId);
+    await ctx.answerCallbackQuery();
   });
-  
-  // Handle product selection
-  bot.callbackQuery(/^product_(.+)$/, async (ctx) => {
-    if (!ctx.from) return await ctx.answerCallbackQuery("User not found");
-    
-    try {
-      const productId = ctx.match[1];
-      await showProductDetails(ctx, productId);
-      await ctx.answerCallbackQuery();
-    } catch (error) {
-      console.error("Error showing product details:", error);
-      await ctx.answerCallbackQuery("Error loading product details. Please try again.");
-    }
-  });
-  
-  // Handle back to categories button
-  bot.callbackQuery("view_categories", async (ctx) => {
+
+  // Handle back to categories
+  bot.callbackQuery("back_to_categories", async (ctx) => {
     await showCategories(ctx);
     await ctx.answerCallbackQuery();
   });
-  
-  // Handle pagination for products
-  bot.callbackQuery(/^next_products_(.+)_(\d+)$/, async (ctx) => {
-    if (!ctx.from) return await ctx.answerCallbackQuery("User not found");
-    
-    try {
-      const categoryId = ctx.match[1];
-      const offset = parseInt(ctx.match[2]);
-      await showProductsInCategory(ctx, categoryId);
-      await ctx.answerCallbackQuery();
-    } catch (error) {
-      console.error("Error loading more products:", error);
-      await ctx.answerCallbackQuery("Error loading more products. Please try again.");
-    }
-  });
 
-  // Handle purchase button - show confirmation first
-  bot.callbackQuery(/^purchase_(.+)$/, async (ctx) => {
-    if (!ctx.from) return await ctx.answerCallbackQuery("User not found");
-    
-    try {
-      const productId = ctx.match[1];
-      // Instead of direct purchase, request confirmation first
-      await PurchaseService.requestPurchaseConfirmation(ctx, productId);
-      await ctx.answerCallbackQuery();
-    } catch (error) {
-      console.error("Error processing purchase:", error);
-      await ctx.answerCallbackQuery("Error preparing your purchase. Please try again.");
-    }
-  });
-
-  // Handle confirm purchase
-  bot.callbackQuery(/^confirm_purchase_(.+)_(\d+)$/, async (ctx) => {
+  // Handle product selection
+  bot.callbackQuery(/^product_(.+)$/, async (ctx) => {
     const productId = ctx.match[1];
-    const quantity = parseInt(ctx.match[2], 10);
-
+    await showProductDetails(ctx, productId);
     await ctx.answerCallbackQuery();
-    // Enforce GCoin-only purchases
-    await PurchaseService.initiateProductPurchaseWithGcoin(ctx, productId, quantity);
   });
 
-  // Handle cancel purchase
-  bot.callbackQuery("cancel_purchase", async (ctx) => {
-    await ctx.answerCallbackQuery("Purchase canceled.");
-    await ctx.reply("No worries. Purchase canceled.");
+  // Handle purchase button
+  bot.callbackQuery(/^purchase_(.+)$/, async (ctx) => {
+    const productId = ctx.match[1];
+    await showPurchaseConfirmation(ctx, productId);
+    await ctx.answerCallbackQuery();
+  });
+
+  // Handle out of stock products
+  bot.callbackQuery("out_of_stock", async (ctx) => {
+    await ctx.answerCallbackQuery("This product is currently out of stock. Please check back later!");
+  });
+
+  // Handle purchase confirmation - AUTO USDT PAYMENT
+  bot.callbackQuery(/^confirm_purchase_(.+)$/, async (ctx) => {
+    const productId = ctx.match[1];
+    
+    if (!ctx.from) {
+      await ctx.answerCallbackQuery("User not found");
+      return;
+    }
+
+    try {
+      const product = await ProductRepository.findProductById(productId);
+      if (!product) {
+        await ctx.editMessageText("❌ Product not found", { parse_mode: "Markdown" });
+        return;
+      }
+
+      // Check stock availability
+      if (product.digitalContent.length === 0) {
+        await ctx.editMessageText(
+          `❌ **OUT OF STOCK**\n\n${product.name} is currently unavailable.\n\nPlease check back later!`,
+          { 
+            parse_mode: "Markdown",
+            reply_markup: new InlineKeyboard().text("🔙 Back to Product", `product_${productId}`)
+          }
+        );
+        return;
+      }
+
+      // Show crypto payment options - Let user choose
+      await ctx.editMessageText(
+        `💰 **SECURE CRYPTO PAYMENT**\n` +
+        `════════════════════\n\n` +
+        `🎯 **Product:** ${product.name}\n` +
+        `� **Price:** $${product.price.toFixed(2)} USD\n\n` +
+        `🌐 **Choose Your Preferred Payment Method:**\n` +
+        `Select the cryptocurrency you want to use for payment.\n\n` +
+        `⚡ **Instant Delivery** after payment confirmation`,
+        {
+          parse_mode: "Markdown",
+          reply_markup: new InlineKeyboard()
+            .text("💎 USDT (Recommended)", `pay_usdt_${productId}`)
+            .text("₿ Bitcoin (BTC)", `pay_btc_${productId}`).row()
+            .text("🔷 Ethereum (ETH)", `pay_eth_${productId}`)
+            .text("🪙 Litecoin (LTC)", `pay_ltc_${productId}`).row()
+            .text("🔙 Back to Product", `product_${productId}`)
+        }
+      );
+
+      await ctx.answerCallbackQuery("Choose your payment method");
+      
+    } catch (error) {
+      console.error("Purchase confirmation error:", error);
+      await ctx.editMessageText(
+        "❌ **Error**\n\nSomething went wrong. Please try again.\n\n📞 Support: @jeogooussama",
+        { parse_mode: "Markdown" }
+      );
+      await ctx.answerCallbackQuery("❌ Error occurred");
+    }
   });
 
   // Handle payment status check
   bot.callbackQuery(/^check_payment_(.+)$/, async (ctx) => {
-    if (!ctx.from) return await ctx.answerCallbackQuery("User not found");
+    const transactionId = ctx.match[1];
     
+    if (!ctx.from) {
+      await ctx.answerCallbackQuery("User not found");
+      return;
+    }
+
     try {
-      const transactionId = ctx.match[1];
-      
-      // Show checking message
-      await ctx.answerCallbackQuery("Checking payment status...");
-      
-      // Get transaction status
+      // Show checking status message
+      await ctx.editMessageText(
+        `🔍 **CHECKING PAYMENT STATUS**\n\n⏳ Verifying your payment...\n\nPlease wait a moment!`,
+        { parse_mode: "Markdown" }
+      );
+
+      // Get transaction from database
       const transaction = await PaymentRepository.findTransactionById(transactionId);
+      
       if (!transaction) {
-        return await ctx.reply("Transaction not found. Please contact support.");
-      }
-      
-      // Check with payment processor for latest status
-      const updatedTx = await PaymentController.checkPaymentStatus(transactionId);
-      
-      if (updatedTx?.status === "completed") {
-        await ctx.reply(
-          "✅ *Payment Successful!*\n\n" +
-          "Your payment has been confirmed and your order is now processing.\n\n" +
-          "Your digital items will be delivered shortly.",
-          { parse_mode: "Markdown", reply_markup: KeyboardFactory.backToMain() }
+        await ctx.editMessageText(
+          `❌ **TRANSACTION NOT FOUND**\n\nUnable to find payment record.\n\n📞 Contact support: @jeogooussama`,
+          { parse_mode: "Markdown" }
         );
-      } else if (updatedTx?.status === "pending") {
-        await ctx.reply(
-          "⏳ *Payment Pending*\n\n" +
-          "We haven't received confirmation of your payment yet.\n\n" +
-          "Please complete the payment process or try again later.",
+        return;
+      }
+
+      // Check payment status with NOWPayments
+      const currentStatus = await nowPaymentsService.getPaymentStatus(transaction.externalId!);
+
+      // Update transaction status if changed  
+      if (currentStatus !== transaction.status) {
+        // Map refunded to cancelled for simplified model
+        const mappedStatus = currentStatus === 'refunded' ? 'cancelled' : currentStatus;
+        await PaymentRepository.updateTransactionStatus(
+          transactionId,
+          mappedStatus as any,
+          {}
+        );
+      }
+
+      if (currentStatus === 'completed') {
+        await ctx.editMessageText(
+          `✅ **PAYMENT CONFIRMED!**\n\n🎉 Your payment has been verified!\n\n📦 Processing your order and delivering digital content...`,
+          { parse_mode: "Markdown" }
+        );
+
+        // Trigger product delivery through secure payment handler
+        // Payment success is now handled by the enhanced payment webhook system
+        console.log('Payment success will be handled by webhook:', transactionId);
+
+        await ctx.answerCallbackQuery("Payment confirmed! Processing delivery...");
+
+      } else if (currentStatus === 'pending') {
+        const keyboard = new InlineKeyboard()
+          .text("🔍 Check Again", `check_payment_${transactionId}`)
+          .row();
+        
+        // Only add payment URL if it exists and is valid
+        if (transaction.paymentUrl && transaction.paymentUrl.startsWith('http')) {
+          keyboard.url("💳 Pay Now", transaction.paymentUrl).row();
+        }
+        
+        keyboard.text("🔙 Back", "main_menu");
+
+        await ctx.editMessageText(
+          `⏰ **PAYMENT PENDING**\n\n💡 Your payment is being processed.\n\n⚡ **Status:** Waiting for confirmation\n📧 You'll receive your content once payment is confirmed\n\n🔍 Click "Check Again" in a few minutes`,
           { 
-            parse_mode: "Markdown", 
-            reply_markup: KeyboardFactory.paymentLink(updatedTx.paymentUrl!, transactionId)
+            parse_mode: "Markdown",
+            reply_markup: keyboard
           }
         );
-      } else {
-        await ctx.reply(
-          "❌ *Payment Issue*\n\n" +
-          "There seems to be an issue with your payment.\n\n" +
-          "Please try again or contact support for assistance.",
-          { parse_mode: "Markdown", reply_markup: KeyboardFactory.backToMain() }
+
+        await ctx.answerCallbackQuery("Payment still pending");
+
+      } else if (currentStatus === 'failed' || currentStatus === 'cancelled') {
+        const keyboard = new InlineKeyboard();
+        
+        // Only add payment URL if it exists and is valid
+        if (transaction.paymentUrl && transaction.paymentUrl.startsWith('http')) {
+          keyboard.url("🔄 Try Again", transaction.paymentUrl).row();
+        }
+        
+        keyboard.text("🔙 Back", "main_menu");
+
+        await ctx.editMessageText(
+          `❌ **PAYMENT ${currentStatus.toUpperCase()}**\n\n😔 Your payment was ${currentStatus}.\n\n🔄 You can try again with the same or different payment method.\n\n📞 Need help? Contact @jeogooussama`,
+          { 
+            parse_mode: "Markdown",
+            reply_markup: keyboard
+          }
         );
+
+        await ctx.answerCallbackQuery(`Payment ${currentStatus}`);
       }
-    } catch (error) {
-      console.error("Error checking payment status:", error);
-      await ctx.reply("Error checking payment status. Please try again later.");
-    }
-  });
 
-  // Handle payment support
-  bot.callbackQuery("payment_support", async (ctx) => {
-    await ctx.answerCallbackQuery();
-    await ctx.reply(
-      "🛠 *Payment Support*\n\n" +
-      "If you're experiencing any issues with your payment, please:\n\n" +
-      "1️⃣ Make sure you completed the payment process\n" +
-      "2️⃣ Try refreshing the payment page\n" +
-      "3️⃣ Contact our support team with your order details\n\n" +
-      "👨‍💻 Support: @jeogo",
-      { parse_mode: "Markdown", reply_markup: KeyboardFactory.backToMain() }
-    );
-  });
-
-  // =====================================
-  // Order Related Callbacks
-  // =====================================
-  
-  // Handle order details view
-  bot.callbackQuery(/^order_(.+)$/, async (ctx) => {
-    if (!ctx.from) return await ctx.answerCallbackQuery("User not found");
-    
-    try {
-      const orderId = ctx.match[1];
-      await showOrderDetail(ctx, orderId);
-      await ctx.answerCallbackQuery();
     } catch (error) {
-      console.error("Error showing order details:", error);
-      await ctx.answerCallbackQuery("Error loading order details. Please try again.");
-    }
-  });
-  
-  // Handle order support request
-  bot.callbackQuery(/^support_order_(.+)$/, async (ctx) => {
-    if (!ctx.from) return await ctx.answerCallbackQuery("User not found");
-    
-    try {
-      const orderId = ctx.match[1];
+      console.error('Payment status check error:', error);
       await ctx.editMessageText(
-        `📞 *Support Request for Order #${orderId.slice(-6)}*\n\n` +
-        "Please contact our support team with this order number for assistance:\n\n" +
-        "👨‍💻 Support: @jeogo",
+        `❌ **ERROR CHECKING PAYMENT**\n\n🚫 Unable to verify payment status.\n\n🔄 Please try again or contact support.\n\n📞 Support: @jeogooussama`,
         { 
           parse_mode: "Markdown",
-          reply_markup: KeyboardFactory.backButton(`order_${orderId}`, "Back to Order Details")
+          reply_markup: new InlineKeyboard().text("🔍 Try Again", `check_payment_${transactionId}`)
         }
       );
-      await ctx.answerCallbackQuery("Support information displayed");
-    } catch (error) {
-      console.error("Error showing order support:", error);
-      await ctx.answerCallbackQuery("Error processing your request. Please try again.");
+      await ctx.answerCallbackQuery("❌ Error occurred");
     }
   });
 
-  // Handle going back to orders
-  bot.callbackQuery("my_orders", async (ctx) => {
-    if (!ctx.from?.id) {
-      await ctx.reply("Unable to identify user.");
-      return;
-    }
-
-    try {
-      // Use the same function but always start at page 1
-      const userId = ctx.from.id.toString();
-      await showOrdersPage(ctx, userId, 1);
-      await ctx.answerCallbackQuery();
-    } catch (error) {
-      console.error("Error fetching orders:", error);
-      await ctx.editMessageText("Sorry, an error occurred while retrieving your orders.");
-    }
-  });
-
-  // Handle orders page navigation
-  bot.callbackQuery(/^orders_page_(\d+)$/, async (ctx) => {
-    if (!ctx.from) return await ctx.answerCallbackQuery("User not found");
-    
-    try {
-      const pageNumber = parseInt(ctx.match[1]);
-      const userId = ctx.from.id.toString();
-      await showOrdersPage(ctx, userId, pageNumber);
-      await ctx.answerCallbackQuery();
-    } catch (error) {
-      console.error("Error navigating orders:", error);
-      await ctx.answerCallbackQuery("Error loading orders. Please try again.");
-    }
-  });
-  
-  // Placeholder for current page info button
-  bot.callbackQuery("current_page_info", async (ctx) => {
-    await ctx.answerCallbackQuery("Current page indicator");
-  });
-
-  // =====================================
-  // Registration & User Related Callbacks
-  // =====================================
-  
-  // Handle terms acceptance
-  bot.callbackQuery("accept_terms", async (ctx) => {
-    if (!ctx.from) {
-      await ctx.answerCallbackQuery("Unable to identify user");
-      return;
-    }
-
-    try {
-      // تسجيل المستخدم تلقائيًا
-      const userData = {
-        telegramId: ctx.from.id,
-        username: ctx.from.username
-      };
-      await UserRepository.createOrUpdateUser(userData);
-      ctx.session.step = "approved";
-      await ctx.answerCallbackQuery("تم تسجيلك بنجاح!");
-      await ctx.editMessageText(
-        "✅ تم تسجيلك بنجاح! يمكنك الآن استخدام جميع ميزات البوت مباشرة.\n\nاستخدم القائمة الرئيسية للبدء."
-      );
-    } catch (error) {
-      console.error("Error in registration:", error);
-      await ctx.answerCallbackQuery("Error processing registration");
-      await ctx.reply("حدث خطأ أثناء التسجيل. حاول مرة أخرى باستخدام /start");
-    }
-  });
-
-  // Handle terms decline
-  bot.callbackQuery("decline_terms", async (ctx) => {
-    await ctx.answerCallbackQuery("You must accept the terms to use the service");
-    await ctx.editMessageText(
-      "❌ You have declined the terms and conditions.\n\n" +
-      "You must accept the terms to use our service. Use /start if you change your mind."
-    );
-  });
-
-  // Register command shortcut
-  bot.callbackQuery("register", async (ctx) => {
-    await ctx.editMessageText(
-      "*الشروط والأحكام*\n\nاستخدامك لهذا البوت يعني موافقتك على الشروط.\n\nاضغط موافق للاستمرار.",
-      {
-        parse_mode: "Markdown",
-        reply_markup: KeyboardFactory.terms()
-      }
-    );
-    await ctx.answerCallbackQuery();
-  });
-
-  // =====================================
-  // Navigation & UI Related Callbacks
-  // =====================================
-  
-  // Handle main menu button press
+  // Handle main menu callback (if any old inline keyboards are still around)
   bot.callbackQuery("main_menu", async (ctx) => {
     await ctx.editMessageText(
-      "مرحبًا بك في بوت GameKey!\nاستخدم القائمة للبدء.",
-      { reply_markup: KeyboardFactory.mainMenu() }
+      "🏠 *Main Menu*\n\nUse the menu buttons at the bottom to navigate!",
+      { parse_mode: "Markdown" }
     );
-    await ctx.answerCallbackQuery("Main menu displayed");
+    await ctx.answerCallbackQuery("Main menu");
   });
-  
-  // Handle contact support button
+
+  // Handle contact support callback
   bot.callbackQuery("contact_support", async (ctx) => {
-    await showContactInfo(ctx);
-    await ctx.answerCallbackQuery("Support information displayed");
-  });
-  
-  // Handle help button
-  bot.callbackQuery("help", async (ctx) => {
     await ctx.editMessageText(
-      "*مساعدة*\n\n- لشراء منتج اختر من القائمة\n- للدعم تواصل مع @jeogo",
+      "📞 *Contact Support*\n\nFor help, contact: @jeogooussama\n\nUse the menu buttons below to navigate!",
       { parse_mode: "Markdown" }
     );
-    await ctx.answerCallbackQuery();
+    await ctx.answerCallbackQuery("Support info");
   });
 
-  // Handle channel membership verification
-  bot.callbackQuery("check_channel_membership", async (ctx) => {
-    if (!ctx.from) return await ctx.answerCallbackQuery("User not found");
-    
-    try {
-      // Get channel member information
-      const member = await ctx.api.getChatMember("@GameKeyChannel", ctx.from.id);
-      
-      if (
-        member.status === "creator" ||
-        member.status === "administrator" ||
-        member.status === "member"
-      ) {
-        // User is a member, welcome them
-        await ctx.answerCallbackQuery("✅ Channel membership confirmed!");
-        await ctx.reply(
-          "Thank you for joining our channel! You can now use the bot.",
-          { reply_markup: KeyboardFactory.backToMain() }
-        );
-        
-        // Continue with the regular flow if they haven't started yet
-        const user = await UserRepository.findUserByTelegramId(ctx.from.id);
-        if (!user) {
-          await sendWelcomeMessage(ctx);
-        }
-      } else {
-        // User is still not a member
-        await ctx.answerCallbackQuery({ text: "❌ You still need to join the channel", show_alert: true });
-        await ctx.reply(
-          "You still need to join our channel before using the bot.\n\n" +
-          "Please join @GameKeyChannel and try again.",
-          {
-            reply_markup: {
-              inline_keyboard: [
-                [{ text: "📢 Join Channel", url: "https://t.me/GameKeyChannel" }],
-                [{ text: "✅ Check Again", callback_data: "check_channel_membership" }]
-              ]
-            }
-          }
-        );
-      }
-    } catch (error) {
-      console.error("Error verifying channel membership:", error);
-      await ctx.answerCallbackQuery("Error checking membership. Please try again.");
+  // Handle crypto payment selection - SECURE VERSION WITH REAL PAYMENT
+  bot.callbackQuery(/^pay_(btc|eth|usdt|ltc)_(.+)$/, async (ctx) => {
+    const crypto = ctx.match[1].toLowerCase();
+    const productId = ctx.match[2];
+    await handleCryptoPayment(ctx, crypto, productId);
+  });
+
+  // Handle any other callbacks with a generic response
+  bot.on("callback_query", async (ctx) => {
+    await ctx.answerCallbackQuery("Use the menu buttons at the bottom!");
+  });
+}
+
+// Separate function to handle crypto payment
+async function handleCryptoPayment(ctx: MyContext, crypto: string, productId: string) {
+  if (!ctx.from) {
+    await ctx.answerCallbackQuery("User not found");
+    return;
+  }
+
+  try {
+    // Show processing message
+    await ctx.editMessageText(
+      `⏳ **SETTING UP PAYMENT**\n\n🔄 Creating secure ${crypto.toUpperCase()} payment link...\n\n💎 Connecting to NOWPayments gateway...\n\n⚡ Please wait a moment!`,
+      { parse_mode: "Markdown" }
+    );
+
+    // Get product and verify availability
+    const product = await ProductRepository.findProductById(productId);
+    if (!product) {
+      await ctx.editMessageText(
+        `❌ **PRODUCT NOT FOUND**\n\nThe requested product could not be found.\n\n🔄 Please try again.`,
+        { parse_mode: "Markdown" }
+      );
+      return;
     }
-  });
-}
 
-// Helper function to notify user of approval - specific to callback handling
-async function notifyUserOfApproval(userId: number): Promise<void> {
-  try {
-    // Send approval message with clearer instructions
-    await bot.api.sendMessage(userId, 
-      "🎉 *Your request has been accepted!* 🎉\n\n" + 
-      "You can now use the bot and access all features.\n\n" +
-      "Just type /start to begin shopping in our digital store.",
-      { parse_mode: "Markdown" }
-    );
+    // Check availability
+    if (product.digitalContent.length === 0) {
+      await ctx.editMessageText(
+        `❌ **OUT OF STOCK**\n\n${product.name} is currently unavailable.\n\n🔄 Please check back later!`,
+        { 
+          parse_mode: "Markdown",
+          reply_markup: new InlineKeyboard().text("🔙 Back to Product", `product_${productId}`)
+        }
+      );
+      return;
+    }
+
+    // Create user if needed
+    let user = await UserRepository.findUserByTelegramId(ctx.from.id);
+    if (!user) {
+      user = await UserRepository.createOrUpdateUser({
+        telegramId: ctx.from.id,
+        username: ctx.from.username || "Unknown"
+      });
+    }
+
+    if (!user || !user._id) {
+      await ctx.editMessageText(
+        `❌ **USER ERROR**\n\nUnable to process user information.\n\n🔄 Please try again.`,
+        { parse_mode: "Markdown" }
+      );
+      return;
+    }
+
+    // Create order
+    const order = await OrderRepository.createOrder({
+      userId: user._id,
+      productId: product._id!,
+      quantity: 1,
+      unitPrice: product.price
+      // Simplified Order model - type and customerNote removed
+    });
+
+    if (!order || !order._id) {
+      await ctx.editMessageText(
+        `❌ **ORDER ERROR**\n\nFailed to create order.\n\n📞 Please try again.`,
+        { parse_mode: "Markdown" }
+      );
+      return;
+    }
+
+    // Create REAL payment URL with NOWPayments
+    const paymentOptions: any = {
+      amount: product.price,
+      currency: 'USD',
+      description: `GameKey: ${product.name}`,
+      orderId: order._id.toString(),
+      productName: product.name,
+      userId: user._id.toString(),
+      cryptoCurrency: crypto.toUpperCase() as 'BTC' | 'ETH' | 'USDT' | 'LTC'
+    };
+
+    console.log('🔄 Creating payment with options:', paymentOptions);
+    const paymentTransaction = await nowPaymentsService.createPayment(paymentOptions);
+    
+    if (!paymentTransaction || !paymentTransaction.paymentUrl) {
+      await ctx.editMessageText(
+        `❌ **PAYMENT SYSTEM ERROR**\n\nUnable to create payment URL.\n\n📞 Please contact support: @jeogooussama`,
+        { parse_mode: "Markdown" }
+      );
+      return;
+    }
+
+    // Store payment transaction in our database
+    const dbTransaction = await PaymentRepository.createTransaction({
+      userId: user._id.toString(),
+      orderId: order._id.toString(),
+      amount: product.price,
+      currency: crypto.toLowerCase(),
+      paymentProvider: "nowpayments",
+      status: "pending",
+      externalId: paymentTransaction.externalId || `temp-${Date.now()}`,
+      paymentUrl: paymentTransaction.paymentUrl
+      // Simplified PaymentTransaction model - metadata removed
+    });
+
+    // Determine actual currency used (may be different from requested due to availability)
+    const actualCurrency = paymentTransaction.currency || crypto.toUpperCase();
+    
+    // Create user-friendly display name for currency
+    const displayCurrency = actualCurrency.toLowerCase().includes('usdt') ? 'USDT' : actualCurrency.toUpperCase();
+    
+    // Create payment URL keyboard with display currency
+    const keyboard = new InlineKeyboard()
+      .url(`💳 Pay $${product.price} with ${displayCurrency}`, paymentTransaction.paymentUrl!)
+      .row()
+      .text("🔍 Check Payment Status", `check_payment_${dbTransaction._id}`)
+      .row()
+      .text("🔙 Back to Product", `product_${productId}`);
+    
+    // Send secure payment message with real URL
+    const paymentMessage = `💰 **PAYMENT READY**\n` +
+      `════════════════════\n\n` +
+      `🎮 **Product:** ${product.name}\n` +
+      `💵 **Price:** $${product.price} USD\n` +
+      `💎 **Payment Method:** ${displayCurrency}${actualCurrency.toLowerCase().includes('erc20') ? ' (ERC20)' : ''}\n\n` +
+      `${displayCurrency !== crypto.toUpperCase() ? `ℹ️ **Note:** Using ${displayCurrency} (most reliable option available)\n\n` : ''}` +
+      `🔗 **Complete your payment using the link below:**\n\n` +
+      `✅ **SECURE PAYMENT FEATURES:**\n` +
+      `• Official NOWPayments gateway\n` +
+      `• SSL encrypted transactions\n` +
+      `• Instant automatic delivery\n` +
+      `• Real-time payment tracking\n` +
+      `• Payment link expires in 24 hours\n\n` +
+      `� **After Payment:**\n` +
+      `• Use "Check Payment Status" to verify\n` +
+      `• Your digital content will be delivered automatically\n` +
+      `• You'll receive a confirmation message\n\n` +
+      `📞 **Need Help?** Contact @jeogooussama`;
+
+    await ctx.editMessageText(paymentMessage, { 
+      parse_mode: "Markdown",
+      reply_markup: keyboard
+    });
+    await ctx.answerCallbackQuery("Payment URL created! Please complete payment.");
+    
   } catch (error) {
-    console.error(`Failed to notify user ${userId} of approval:`, error);
+    console.error(`${crypto} payment creation error:`, error);
+    await ctx.editMessageText(
+      `❌ **PAYMENT SYSTEM ERROR**\n\n🚫 Unable to create ${crypto.toUpperCase()} payment.\n\n🔄 Please try again.\n\n📞 Support: @jeogooussama`,
+      { 
+        parse_mode: "Markdown",
+        reply_markup: new InlineKeyboard().text("🔄 Try Again", `confirm_purchase_${productId}`)
+      }
+    );
+    await ctx.answerCallbackQuery("❌ Payment creation failed");
   }
 }
-
-// Helper function to notify user of rejection - specific to callback handling
-async function notifyUserOfRejection(userId: number): Promise<void> {
-  try {
-    await bot.api.sendMessage(userId, 
-      "❌ *Registration Declined*\n\nWe're sorry, but your registration request has been declined. " +
-      "If you believe this is an error, please contact our support.",
-      { parse_mode: "Markdown" }
-    );
-  } catch (error) {
-    console.error(`Failed to notify user ${userId} of rejection:`, error);
-  }
-}
-function sendWelcomeMessage(ctx: CallbackQueryContext<MyContext>) {
-  throw new Error("Function not implemented.");
-}
-

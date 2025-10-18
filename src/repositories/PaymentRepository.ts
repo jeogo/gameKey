@@ -54,7 +54,7 @@ export async function findTransactionByExternalId(externalId: string): Promise<I
   }
 }
 
-// Find transaction by provider transaction ID (NOWPayments payment_id)
+// Find transaction by provider transaction ID
 export async function findTransactionByProviderId(providerTransactionId: string): Promise<IPaymentTransaction | null> {
   try {
     await connectToDatabase();
@@ -97,8 +97,7 @@ export async function updateTransactionStatus(
     );
     
     // Record status change in history
-    await addPaymentStatusHistory(id, status, additionalData.cryptoTxHash ? 
-      `Status updated to ${status}. Transaction hash: ${additionalData.cryptoTxHash}` :
+    await addPaymentStatusHistory(id, status,
       `Status updated to ${status}.`
     );
     
@@ -286,7 +285,7 @@ export async function createFullTransaction(txData: IPaymentTransaction): Promis
 export async function updateTransaction(id: string, updates: Partial<IPaymentTransaction>): Promise<IPaymentTransaction | null> {
   await connectToDatabase();
   const collection = getDb().collection("payment_transactions");
-  updates.updatedAt = new Date();
+  // Simplified PaymentTransaction model - updatedAt removed
   const result = await collection.findOneAndUpdate(
     { _id: new ObjectId(id) },
     { $set: updates },

@@ -1,19 +1,13 @@
 import { Keyboard } from "grammy";
 
 /**
- * Creates a persistent keyboard menu that stays at the bottom of the chat
+ * Clean interface - no persistent keyboard buttons
+ * All navigation through commands only
  */
-export function createMainMenu(): Keyboard {
-  return new Keyboard()
-    .text("🛍️ Products").text("🧾 My Orders").row()
-    .text("ℹ️ Help").text("📞 Support").row()
-    .text("🏠 Main Menu")
-    .resized();
-}
 
 /**
- * Creates a keyboard for removing the persistent menu
+ * Removes any persistent keyboard (clean interface)
  */
-export function createHideKeyboardMarkup(): { remove_keyboard: true } {
+export function removeKeyboard(): { remove_keyboard: true } {
   return { remove_keyboard: true };
 }

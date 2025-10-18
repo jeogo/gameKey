@@ -59,14 +59,12 @@ export async function countOrdersByUser(userId: string): Promise<number> {
   return await collection.countDocuments({ userId });
 }
 
-// Create a new order
+// Create a new order - Simplified
 export async function createOrder(orderData: {
   userId: string;
   productId: string;
   quantity: number;
   unitPrice: number;
-  type: IOrder['type'];
-  customerNote?: string;
 }): Promise<IOrder> {
   await connectToDatabase();
   const collection = getDb().collection('orders');
@@ -78,52 +76,28 @@ export async function createOrder(orderData: {
     ...orderData,
     totalAmount,
     status: 'pending' as const,
-    createdAt: now,
-    updatedAt: now,
-    statusHistory: [
-      { status: 'pending' as const, timestamp: now }
-    ]
+    createdAt: now
   };
   
   const result = await collection.insertOne(newOrder);
   return { ...newOrder, _id: result.insertedId.toString() };
 }
 
-// Update order status
+// Update order status - Simplified
 export async function updateOrderStatus(
-  id: string, 
-  status: IOrder['status'],
-  note?: string
-): Promise<IOrder | null> {
+id: string, status: IOrder['status']): Promise<IOrder | null> {
   try {
     await connectToDatabase();
     const collection = getDb().collection('orders');
     const objectId = new ObjectId(id);
-    const now = new Date();
-    
-    // Create status history entry
-    const statusEntry = { 
-      status, 
-      timestamp: now,
-      note 
-    };
     
     const updateData: any = {
-      status,
-      updatedAt: now
+      status
     };
-    
-    // If completing the order, add completedAt date
-    if (status === 'completed') {
-      updateData.completedAt = now;
-    }
     
     const result = await collection.findOneAndUpdate(
       { _id: objectId },
-      { 
-        $set: updateData,
-        $push: { statusHistory: { $each: [statusEntry] } as unknown as any }
-      },
+      { $set: updateData },
       { returnDocument: 'after' }
     );
     
@@ -192,6 +166,50 @@ export async function getSalesStatistics(
   };
 }
 
-export function findOrdersByStatus(arg0: string) {
-  throw new Error('Function not implemented.');
+// Find orders by status - implementation
+export async function findOrdersByStatus(status: IOrder['status'], page = 1, limit = 20): Promise<{ orders: IOrder[], total: number }> {
+  return findOrders({ status }, page, limit);
+}
+
+/**
+ * Fulfill order by delivering product content
+ */
+export async function fulfillOrder(id: string, deliveredContent: string[]): Promise<IOrder | null> {
+  try {
+    await connectToDatabase();
+    const collection = getDb().collection('orders');
+    const objectId = new ObjectId(id);
+    
+    const result = await collection.findOneAndUpdate(
+      { _id: objectId },
+      { 
+        $set: { 
+          status: 'delivered',
+          deliveredContent: deliveredContent
+        }
+      },
+      { returnDocument: 'after' }
+    );
+    
+    return mapOrder(result);
+  } catch (error) {
+    console.error(`Error fulfilling order ${id}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Delete an order by ID
+ */
+export async function deleteOrder(id: string): Promise<boolean> {
+  try {
+    await connectToDatabase();
+    const collection = getDb().collection('orders');
+    const objectId = new ObjectId(id);
+    const result = await collection.deleteOne({ _id: objectId });
+    return result.deletedCount > 0;
+  } catch (error) {
+    console.error(`Error deleting order ${id}:`, error);
+    throw error;
+  }
 }

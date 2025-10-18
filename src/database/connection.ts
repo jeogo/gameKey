@@ -3,20 +3,34 @@ import { config } from 'dotenv';
 
 config();
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://admin:admin@e-commerce.cobbugf.mongodb.net/?retryWrites=true&w=majority&appName=E-commerce';
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/telegram-store';
+const MONGODB_URI_FALLBACK = process.env.MONGODB_URI_FALLBACK || 'mongodb://localhost:27017/telegram-store';
 const DB_NAME = process.env.DB_NAME || 'telegram-store';
 let client: MongoClient | null = null;
 let db: Db | null = null;
 let connectionRetries = 0;
 const MAX_RETRIES = 5;
 
-// Enhanced connection function with retries
+// Enhanced connection function with retries and fallback
 export async function connectToDatabase(): Promise<Db> {
   if (db) return db;
   
+  // Try primary URI first, then fallback
+  const uriToTry = (connectionRetries < 3) ? MONGODB_URI : (MONGODB_URI_FALLBACK || MONGODB_URI);
+  const uriType = (connectionRetries < 3) ? 'Primary' : 'Fallback';
+  
+  console.log(`🔌 Attempting to connect to MongoDB... (Attempt ${connectionRetries + 1}/${MAX_RETRIES})`);
+  console.log(`📍 ${uriType} Connection URI: ${uriToTry.replace(/\/\/[^@]+@/, '//***:***@')}`); // Hide credentials in log
+  
   try {
-    client = new MongoClient(MONGODB_URI, {
-      // Add any MongoDB client options here if needed
+    client = new MongoClient(uriToTry, {
+      // Connection configuration with timeouts
+      serverSelectionTimeoutMS: 5000, // 5 seconds
+      connectTimeoutMS: 10000, // 10 seconds
+      socketTimeoutMS: 45000, // 45 seconds
+      maxPoolSize: 10,
+      retryWrites: true,
+      w: 'majority'
     });
     
     await client.connect();
@@ -35,8 +49,8 @@ export async function connectToDatabase(): Promise<Db> {
     console.error(`❌ Failed to connect to MongoDB (attempt ${connectionRetries}/${MAX_RETRIES}):`, error);
     
     if (connectionRetries < MAX_RETRIES) {
-      // Wait with exponential backoff before retrying
-      const retryDelay = Math.min(1000 * Math.pow(2, connectionRetries), 30000);
+      // Wait with shorter delays for faster retry
+      const retryDelay = Math.min(2000 + (connectionRetries * 1000), 10000); // 2s, 3s, 4s, 5s, 6s max
       console.log(`🔄 Retrying connection in ${retryDelay / 1000} seconds...`);
       
       await new Promise(resolve => setTimeout(resolve, retryDelay));

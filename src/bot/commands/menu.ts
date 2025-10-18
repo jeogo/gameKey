@@ -1,10 +1,10 @@
 import { Bot } from "grammy";
 import { MyContext } from "../types/session";
-import KeyboardFactory from "../keyboards";
+import { removeKeyboard } from "../keyboards/persistentKeyboard";
 import * as UserRepository from "../../repositories/UserRepository";
 
 /**
- * Display the main menu
+ * Display the main menu with clean command interface
  */
 async function showMainMenu(ctx: MyContext): Promise<void> {
   try {
@@ -15,32 +15,33 @@ async function showMainMenu(ctx: MyContext): Promise<void> {
     
     if (!user) {
       await ctx.reply(
-        "Welcome to GameKey! To use the bot, please use the /start command first and accept the terms."
+        "Welcome to GameKey! To use the bot, please use the /start command first."
       );
       return;
     }
     
-    // Format balance with thousands separator
-    const formattedBalance = user.gcoinBalance.toLocaleString('en-US');
+    const username = ctx.from.first_name || ctx.from.username || "Gamer";
     
-    const welcomeMessage = `
-🎮 *Welcome to GameKey Store!*
-
-💰 Your current balance: *${formattedBalance} GCoin*
-
-Please select an option from the menu below:
-`;
+    const menuMessage = `🎮 *GameKey Store - Main Menu*\n\n` +
+      `👋 Hello ${username}!\n\n` +
+      `🏪 *Available Commands:*\n\n` +
+      `🛍️ /products - Browse our game collection\n` +
+      `📜 /orders - View your purchase history\n` +
+      `� /profile - Check your account details\n` +
+      `💬 /help - Get help and information\n` +
+      `📞 /support - Contact customer support\n\n` +
+      `━━━━━━━━━━━━━━━━━━━━━\n` +
+      `🎯 *Simply type any command to get started!*`;
     
     if (ctx.callbackQuery) {
-      await ctx.editMessageText(welcomeMessage, {
-        parse_mode: "Markdown",
-        reply_markup: KeyboardFactory.mainMenu()
+      await ctx.editMessageText(menuMessage, {
+        parse_mode: "Markdown"
       });
       await ctx.answerCallbackQuery();
     } else {
-      await ctx.reply(welcomeMessage, {
+      await ctx.reply(menuMessage, {
         parse_mode: "Markdown",
-        reply_markup: KeyboardFactory.mainMenu()
+        reply_markup: removeKeyboard()
       });
     }
     

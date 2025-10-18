@@ -2,6 +2,7 @@ import { startBot } from "./bot";
 import { startServer } from "./server";
 import { config } from "dotenv";
 import { connectToDatabase, closeDatabase } from "./database/connection";
+import { initializeDatabase } from "./database/optimization";
 
 // Load environment variables
 config();
@@ -13,6 +14,11 @@ async function main(): Promise<void> {
     console.log("🔌 Connecting to MongoDB...");
     await connectToDatabase();
     console.log("✅ Database connected successfully");
+    
+    // Initialize database optimizations (indexes, etc.)
+    console.log("⚡ Optimizing database performance...");
+    await initializeDatabase();
+    console.log("✅ Database optimizations applied");
     
     // Then start the Express server
     console.log("🚀 Starting Express server...");

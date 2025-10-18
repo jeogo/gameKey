@@ -1,6 +1,6 @@
 import { Bot } from "grammy";
 import { MyContext } from "../types/session";
-import KeyboardFactory from "../keyboards";
+import { removeKeyboard } from "../keyboards/persistentKeyboard";
 import * as UserRepository from "../../repositories/UserRepository";
 
 /**
@@ -15,45 +15,35 @@ async function helpCommand(ctx: MyContext): Promise<void> {
     
     if (!user) {
       await ctx.reply(
-        "Welcome to GameKey! To use the bot, please use the /start command first and accept the terms."
+        "Welcome to GameKey! To use the bot, please use the /start command first."
       );
       return;
     }
     
-    // Show full help information for users
-    const helpMessage = `
-📚 *Help Guide and Commands*
-
-*Basic Commands:*
-/start - Start using the bot
-/menu - View main menu
-/products - Browse products
-/orders - View your previous orders
-/support - Contact support
-
-*GCoin Commands:*
-/gcoin - View your GCoin balance
-/buy_gcoins - Buy more GCoin
-/transactions - View GCoin transaction history
-
-*Referral Commands:*
-/referrals - Manage your referral program
-
-*How to use GCoin:*
-• GCoin is an in-bot currency used for purchases.
-• You can buy GCoin using cryptocurrencies.
-• Exchange rate: 1$ = approximately 10 GCoin.
-
-*Referral System:*
-• Get 50 GCoin for each friend who registers using your referral link.
-• Get an additional 100 GCoin when your friend makes their first purchase.
-
-For direct assistance, use the /support command to contact our support team.
-`;
+    // Clean help message with commands
+    const helpMessage = `💬 *GameKey Help & Commands*\n\n` +
+      `🎮 *Available Commands:*\n\n` +
+      `🛍️ /products - Browse our gaming catalog\n` +
+      `📜 /orders - View your purchase history\n` +
+      `👤 /profile - Your account & statistics\n` +
+      `🏠 /menu - Return to main menu\n` +
+      `📞 /support - Contact customer support\n\n` +
+      `🔥 *How to purchase:*\n` +
+      `1. Type /products to browse\n` +
+      `2. Choose a game you want\n` +
+      `3. Complete secure crypto payment\n` +
+      `4. Get instant delivery!\n\n` +
+      `💎 *Payment Methods:*\n` +
+      `• Bitcoin (BTC)\n` +
+      `• Ethereum (ETH)\n` +
+      `• USDT (Tether)\n` +
+      `• Litecoin (LTC)\n\n` +
+      `📞 *Need help?* Contact @jeogo\n\n` +
+      `💡 *Just type any command to get started!*`;
     
     await ctx.reply(helpMessage, {
       parse_mode: "Markdown",
-      reply_markup: KeyboardFactory.mainMenu()
+      reply_markup: removeKeyboard()
     });
     
   } catch (error) {

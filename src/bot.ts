@@ -4,11 +4,10 @@ import { MyContext } from "./bot/types/session";
 import { registerCallbackHandlers } from "./bot/handlers/callbackHandlers";
 import { registerAdminHandlers } from "./bot/handlers/adminHandlers";
 import { registerMessageHandlers } from "./bot/handlers/messageHandlers";
+import { registerCommands } from "./bot/commands";
 import { sessionMiddleware } from "./bot/middleware/session";
 import { errorHandler } from "./bot/middleware/errorHandler";
 import { authMiddleware } from "./bot/middleware/auth";
-import { requireChannelMembership } from "./bot/middleware/channelMembership";
-
 // Load environment variables
 config();
 
@@ -23,11 +22,11 @@ export const bot = new Bot<MyContext>(apiToken);
 
 // Apply middleware
 bot.use(sessionMiddleware);
-bot.use(requireChannelMembership);
 bot.use(errorHandler);
 bot.use(authMiddleware);
 
 // Register handlers in the correct order
+registerCommands(bot); // Register commands first
 registerCallbackHandlers(bot);
 registerAdminHandlers(bot);
 registerMessageHandlers(bot); // Register this last to avoid conflicts

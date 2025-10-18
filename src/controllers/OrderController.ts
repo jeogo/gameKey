@@ -48,14 +48,12 @@ export async function getUserOrders(
 }
 
 /**
- * Create a new order
+ * Create a new order - Simplified
  */
 export async function createOrder(data: {
   userId: string;
   productId: string;
   quantity: number;
-  type: IOrder['type'];
-  customerNote?: string;
 }): Promise<IOrder> {
   try {
     // Get product for price information
@@ -76,15 +74,14 @@ export async function createOrder(data: {
 }
 
 /**
- * Update order status
+ * Update order status - Simplified
  */
 export async function updateOrderStatus(
   id: string,
-  status: IOrder['status'],
-  note?: string
+  status: IOrder['status']
 ): Promise<IOrder | null> {
   try {
-    return await OrderRepository.updateOrderStatus(id, status, note);
+    return await OrderRepository.updateOrderStatus(id, status);
   } catch (error) {
     console.error(`Error updating status for order ${id}:`, error);
     throw error;
@@ -187,99 +184,29 @@ export function getOrderStatusInfo(order: {
 }
 
 /**
- * Fulfill an order with digital content
+ * Fulfill order - Deliver product content to customer (Simplified)
  */
 export async function fulfillOrder(
-  id: string,
-  content: string | string[] | any,
-  note?: string
+  orderId: string, 
+  deliveredContent: string[]
 ): Promise<IOrder | null> {
   try {
-    // Handle different content formats (string, array, or object with content property)
-    let contentStr: string;
-    
-    if (typeof content === 'string') {
-      contentStr = content;
-    } else if (Array.isArray(content)) {
-      contentStr = content.join(',');
-    } else if (content && typeof content === 'object' && content.content) {
-      // Extract from object if the content is nested in a 'content' property
-      contentStr = typeof content.content === 'string' ? content.content : 
-                  Array.isArray(content.content) ? content.content.join(',') : 
-                  JSON.stringify(content.content);
-    } else {
-      throw new Error('Digital content is required for order fulfillment and must be a string, array, or object with content property');
-    }
-    
-    // Validate content is not empty after processing
-    if (contentStr.trim() === '') {
-      throw new Error('Digital content cannot be empty');
-    }
-
-    const order = await OrderRepository.findOrderById(id);
-    if (!order) return null;
-
-    // Get product details for the notification
-    const product = await ProductRepository.findProductById(order.productId);
-    if (!product) {
-      throw new Error('Product not found for this order');
-    }
-    
-    // Parse digital content (assuming content is in email:password format)
-    const contentItems = contentStr.split(',').map(item => item.trim());
-    
-    // Store digital content in the order history
-    const contentNote = `Order fulfilled with digital content. Content: ${contentStr}`;
-    const updatedOrder = await OrderRepository.updateOrderStatus(
-      id,
-      'completed',
-      contentNote
-    );
-    
-    // Send digital content via Telegram
-    try {
-      // Convert userId to number
-      const userIdNum = parseInt(order.userId, 10);
-      
-      // Format message with proper formatting for digital content
-      let message = `
-🎮 *YOUR ORDER IS FULFILLED!*
-
-*Order ID:* #${id.slice(-6)}
-*Product:* ${product.name}
-
-🔐 *YOUR DIGITAL PRODUCT DETAILS*
-
-Here are your login details:
-
-`;
-      
-      // Add each digital content item
-      contentItems.forEach((item, index) => {
-        try {
-          // Try to split into email:password format
-          const [email, password] = item.split(':');
-          message += `*Item ${index + 1}:*\n`;
-          message += `Email: \`${email}\`\n`;
-          message += `Password: \`${password}\`\n\n`;
-        } catch (e) {
-          // Fallback if splitting fails
-          message += `*Item ${index + 1}:* \`${item}\`\n\n`;
-        }
-      });
-
-      await bot.api.sendMessage(
-        userIdNum,
-        message,
-        { parse_mode: "Markdown" }
-      );
-    } catch (error) {
-      console.error("Error sending fulfillment message to user:", error);
-    }
-
-    return updatedOrder;
+    // Update order status to delivered and add content
+    return await OrderRepository.fulfillOrder(orderId, deliveredContent);
   } catch (error) {
-    console.error(`Error fulfilling order ${id}:`, error);
+    console.error(`Error fulfilling order ${orderId}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Delete order
+ */
+export async function deleteOrder(id: string): Promise<boolean> {
+  try {
+    return await OrderRepository.deleteOrder(id);
+  } catch (error) {
+    console.error(`Error deleting order ${id}:`, error);
     throw error;
   }
 }

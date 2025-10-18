@@ -2,9 +2,8 @@ import { IPaymentTransaction } from '../models/PaymentTransaction';
 import * as PaymentRepository from '../repositories/PaymentRepository';
 import * as OrderRepository from '../repositories/OrderRepository';
 import * as ProductRepository from '../repositories/ProductRepository';
-import { nowPaymentsService } from '../services/NowPaymentsService';
 import { Request, Response } from "express";
-import { handlePaymentSuccess } from "../bot/handlers/paymentHandlers";
+// Note: handlePaymentSuccess will be imported when needed to avoid circular dependency
 
 /**
  * Get all payment transactions with optional filtering
@@ -16,8 +15,11 @@ export async function getAllTransactions(
 ): Promise<{ transactions: IPaymentTransaction[], total: number }> {
   try {
     const skip = (page - 1) * limit;
-    const transactions = await PaymentRepository.findAllTransactions(filter, skip, limit);
-    const total = await PaymentRepository.countTransactions(filter);
+    // Execute both queries in parallel for better performance
+    const [transactions, total] = await Promise.all([
+      PaymentRepository.findAllTransactions(filter, skip, limit),
+      PaymentRepository.countTransactions(filter)
+    ]);
     
     return { transactions, total };
   } catch (error) {
@@ -49,8 +51,11 @@ export async function getUserTransactions(
   try {
     const filter = { userId };
     const skip = (page - 1) * limit;
-    const transactions = await PaymentRepository.findAllTransactions(filter, skip, limit);
-    const total = await PaymentRepository.countTransactions(filter);
+    // Execute both queries in parallel for better performance
+    const [transactions, total] = await Promise.all([
+      PaymentRepository.findAllTransactions(filter, skip, limit),
+      PaymentRepository.countTransactions(filter)
+    ]);
     
     return { transactions, total };
   } catch (error) {
@@ -99,15 +104,17 @@ export async function updateTransactionStatus(
       
       // Update order status based on payment status
       if (status === 'completed' && transaction.orderId) {
-        await OrderRepository.updateOrderStatus(
-          transaction.orderId,
-          'completed',
-          `Payment marked as completed`
-        );
+        // Execute order update and product fetch in parallel
+        const [, product] = await Promise.all([
+          OrderRepository.updateOrderStatus(
+            transaction.orderId,
+            'delivered'
+          ),
+          order ? ProductRepository.findProductById(order.productId) : null
+        ]);
         
         // Notify user about successful payment
         if (order) {
-          const product = await ProductRepository.findProductById(order.productId);
           await notifyUserAboutPayment(
             transaction.userId,
             'completed',
@@ -120,15 +127,13 @@ export async function updateTransactionStatus(
           );
         }
       } else if (status === 'failed' && transaction.orderId) {
-        await OrderRepository.updateOrderStatus(
-          transaction.orderId,
-          'cancelled',
-          `Payment marked as failed`
-        );
-        
-        // Notify user about failed payment
-        if (order) {
-          await notifyUserAboutPayment(
+        // Execute order update and notification in parallel
+        const [,] = await Promise.all([
+          OrderRepository.updateOrderStatus(
+            transaction.orderId,
+            'cancelled'
+          ),
+          order ? notifyUserAboutPayment(
             transaction.userId, 
             'failed',
             {
@@ -136,8 +141,8 @@ export async function updateTransactionStatus(
               amount: transaction.amount,
               paymentMethod: transaction.paymentProvider
             }
-          );
-        }
+          ) : Promise.resolve()
+        ]);
       }
     }
     
@@ -201,19 +206,7 @@ export async function checkPaymentStatus(id: string): Promise<IPaymentTransactio
       return null;
     }
     
-    // Only check status for pending NOWPayments transactions
-    if (transaction.paymentProvider === 'nowpayments' && 
-        transaction.status === 'pending' && 
-        transaction.externalId) {
-      
-      // Check payment status using NOWPayments API
-      const paymentStatus = await nowPaymentsService.getPaymentStatus(transaction.externalId);
-      
-      if (paymentStatus === 'completed') {
-        // Update transaction as completed
-        return await PaymentRepository.updateTransactionStatus(id, 'completed');
-      }
-    }
+    // Placeholder for future payment provider status checks
     
     return transaction;
   } catch (error) {
@@ -246,13 +239,29 @@ export async function getPaymentStatistics(
   }
 }
 
-export async function nowpaymentsSuccess(req: Request, res: Response) {
+/**
+ * Create a new payment transaction - Simplified
+ */
+export async function createTransaction(data: {
+  orderId: string;
+  userId: string;
+  amount: number;
+  currency: string;
+  paymentProvider: string;
+  externalId: string;
+  cryptoType?: string;
+  cryptoAddress?: string;
+  paymentUrl?: string;
+}): Promise<IPaymentTransaction> {
   try {
-    const transactionId = req.query.txId as string;
-    // Process successful payment
-    await handlePaymentSuccess(transactionId);
-    res.status(200).json({ message: "Payment success processed." });
+    return await PaymentRepository.createTransaction({
+      ...data,
+      status: 'pending'
+    });
   } catch (error) {
-    res.status(500).json({ error: "Failed to confirm payment." });
+    console.error('Error creating payment transaction:', error);
+    throw error;
   }
 }
+
+// Placeholder for future payment provider success handlers

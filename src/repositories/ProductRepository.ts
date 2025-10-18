@@ -14,13 +14,22 @@ function mapProduct(product: any): IProduct | null {
 // Find product by MongoDB ID
 export async function findProductById(id: string): Promise<IProduct | null> {
   try {
+    // Clean and validate product ID securely
+    const cleanId = id.trim().split('_')[0]; // Remove quantity suffix if present
+    
+    // Strict ObjectId validation
+    if (!cleanId || !ObjectId.isValid(cleanId)) {
+      return null;
+    }
+    
     await connectToDatabase();
     const collection = getDb().collection('products');
-    const objectId = new ObjectId(id);
-    const product = await collection.findOne({ _id: objectId });
+    
+    const product = await collection.findOne({ _id: new ObjectId(cleanId) });
     return mapProduct(product);
   } catch (error) {
-    console.error('Error finding product by ID:', error);
+    // Silent fail for security - don't expose internal errors
+    console.error('Product lookup failed');
     return null;
   }
 }
@@ -105,7 +114,7 @@ export async function deleteProduct(id: string): Promise<boolean> {
 export async function findProductsByCategoryId(categoryId: string): Promise<IProduct[]> {
   await connectToDatabase();
   const collection = getDb().collection('products');
-  const products = await collection.find({ category: categoryId }).toArray();
+  const products = await collection.find({ categoryId: categoryId }).toArray();
   return products.map(p => mapProduct(p)).filter((p): p is IProduct => p !== null);
 }
 

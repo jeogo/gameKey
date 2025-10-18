@@ -1,37 +1,25 @@
 /**
- * Payment Transaction model for MongoDB
+ * Payment Transaction model for MongoDB - Simplified and Clear
  */
 interface IPaymentTransaction {
-  metadata?: Record<string, any>;
   _id?: string;                          // MongoDB document ID
-  orderId: string;                       // Reference to store order
+  orderId: string;                       // Reference to order
   userId: string;                        // User who made the payment
-  paymentProvider: 'nowpayments';        // Payment method
+  amount: number;                        // Payment amount
+  currency: string;                      // Currency (USD, etc)
+  paymentProvider: string;               // Provider (nowpayments, etc)
+  status: 'pending' | 'completed' | 'failed' | 'cancelled'; // Payment status
   
-  // Payment details
-  providerTransactionId?: string;        // Transaction ID from provider
-  amount: number;                        // Transaction amount
-  currency: string;                      // Currency code (USD, EUR, etc)
+  // Provider transaction details
+  externalId: string;                    // External payment ID
+  providerTransactionId?: string;        // Provider's transaction ID
   
-  // Status
-  status: 'pending' | 'completed' | 'failed' | 'cancelled' | 'refunded'; // Payment status
-  
-  // Crypto specific fields
-  cryptoType?: string;                   // Cryptocurrency type (BTC, ETH, etc)
-  cryptoNetwork?: string;                // Network (e.g., TRC20, ERC20)
-  cryptoAddress?: string;                // Wallet address for payment
-  cryptoTxHash?: string;                 // Transaction hash on blockchain
-  
-  // Additional fields
-  externalId?: string;                   // External transaction ID
-  payerEmail?: string;                   // Payer email address
+  // Crypto payment details
+  cryptoType?: string;                   // Cryptocurrency (BTC, USDT, etc)
+  cryptoAddress?: string;                // Payment address
   paymentUrl?: string;                   // Payment URL
-  webhookData?: any;                     // Raw webhook data
   
-  // Timestamps
-  createdAt: Date;                       // When transaction was created
-  updatedAt: Date;                       // Last update
-  completedAt?: Date;                    // When payment completed
+  createdAt: Date;                       // Creation timestamp
 }
 
 export { IPaymentTransaction };

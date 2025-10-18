@@ -2,11 +2,10 @@ import { Bot } from "grammy";
 import { MyContext } from "../types/session";
 import * as UserRepository from "../../repositories/UserRepository";
 import * as OrderRepository from "../../repositories/OrderRepository";
-import * as GcoinTransactionRepository from "../../repositories/GcoinTransactionRepository";
 import KeyboardFactory from "../keyboards";
 
 /**
- * Display user profile information
+ * Display comprehensive user profile information
  */
 async function showProfile(ctx: MyContext): Promise<void> {
   try {
@@ -22,64 +21,51 @@ async function showProfile(ctx: MyContext): Promise<void> {
       return;
     }
     
-    // Get additional user stats
-    const orderCount = await OrderRepository.countOrdersByUser(user._id!);
-    const transactions = await GcoinTransactionRepository.findTransactionsByUserId(user._id!);
+    // Get comprehensive user stats
+    const ordersResult = await OrderRepository.findOrdersByUserId(user._id!);
+    const orders = ordersResult.orders;
+    const orderCount = orders.length;
     
-    // Calculate total recharge amount
-    const totalRecharge = (transactions as unknown as Array<{ type: string; source: string; amount: number }>)
-      .filter((tx) => tx.type === 'CREDIT' && tx.source === 'PURCHASE')
-      .reduce((sum: number, tx) => sum + tx.amount, 0);
+    // Calculate purchase statistics
+    const completedOrders = orders.filter(order => order.status === 'delivered');
+    const totalSpent = completedOrders.reduce((total, order) => total + (order.totalAmount || 0), 0);
+    const pendingOrders = orders.filter(order => order.status === 'pending');
     
-    // Format numbers with thousands separators
-    const formattedBalance = user.gcoinBalance.toLocaleString('en-US');
-    const formattedRecharge = totalRecharge.toLocaleString('en-US');
+    // Calculate member duration
+    const memberSince = new Date(user.createdAt);
+    const daysSinceMember = Math.floor((Date.now() - memberSince.getTime()) / (1000 * 60 * 60 * 24));
     
-    // Generate referral link
-    const botUsername = process.env.BOT_USERNAME || 'GameKeyBot';
-    const referralLink = `https://t.me/${botUsername}?start=ref_${user.referralCode}`;
+    // Create comprehensive profile message
+    const profileMessage = `� *YOUR PROFILE*\n\n` +
+      `━━━ *Account Info* ━━━\n` +
+      `📛 **Name:** ${ctx.from.first_name} ${ctx.from.last_name || ''}\n` +
+      `🆔 **Username:** ${user.username || 'Not set'}\n` +
+      `� **Member since:** ${memberSince.toLocaleDateString()} (${daysSinceMember} days)\n\n` +
+      
+      `━━━ *Purchase Statistics* ━━━\n` +
+      `📜 **Total Orders:** ${orderCount}\n` +
+      `✅ **Completed:** ${completedOrders.length}\n` +
+      `⏳ **Pending:** ${pendingOrders.length}\n` +
+      `💰 **Total Spent:** $${totalSpent.toFixed(2)}\n\n` +
+      
+      `━━━ *Recent Activity* ━━━\n` +
+      `🕒 **Last Order:** ${orders.length > 0 ? new Date(orders[0].createdAt).toLocaleDateString() : 'None'}\n` +
+      `📈 **Average per Order:** $${orderCount > 0 ? (totalSpent / completedOrders.length || 0).toFixed(2) : '0.00'}\n\n` +
+      
+      `*Use the menu buttons at the bottom to navigate!*`;
     
-    // Create profile message with icons and formatting
-    const profileMessage = `
-📋 *YOUR PROFILE*
-───────────────────
-
-📛 *Name:* ${ctx.from.first_name} ${ctx.from.last_name || ''}
-${ctx.from.username ? `👤 *Username:* @${ctx.from.username}` : ''}
-
-💰 *Current Balance:* ${formattedBalance} GCoin
-💎 *Total Recharge:* ${formattedRecharge} GCoin
-📦 *Previous Orders:* ${orderCount}
-
-🔗 *Your Referral Link:*
-\`${referralLink}\`
-
-───────────────────
-Last updated: ${new Date().toLocaleString()}
-`;
-    
-    // Create inline keyboard with profile options
-    const keyboard = KeyboardFactory.profileMenu();
-    
-    // Determine if we're responding to a command or a callback
-    if (ctx.callbackQuery) {
-      await ctx.editMessageText(profileMessage, {
-        parse_mode: "Markdown",
-        reply_markup: keyboard
-      });
-      await ctx.answerCallbackQuery("Profile updated");
-    } else {
-      await ctx.reply(profileMessage, {
-        parse_mode: "Markdown",
-        reply_markup: keyboard
-      });
-    }
+    // Simple text message without inline keyboard
+    await ctx.reply(profileMessage, {
+      parse_mode: "Markdown"
+    });
     
   } catch (error) {
     console.error("Error showing profile:", error);
     await ctx.reply("Sorry, an error occurred while retrieving your profile information. Please try again later.");
   }
 }
+
+export { showProfile };
 
 export function registerProfileCommand(bot: Bot<MyContext>): void {
   bot.command("profile", showProfile);
@@ -100,16 +86,5 @@ export function registerProfileCommand(bot: Bot<MyContext>): void {
     );
     await ctx.answerCallbackQuery();
     await ctx.reply("/orders");
-  });
-  
-  // Navigate to referrals
-  bot.callbackQuery("view_referrals", async (ctx) => {
-    // We'll use the referrals command handler
-    await ctx.editMessageText(
-      "Redirecting to referral program...",
-      { reply_markup: { inline_keyboard: [] } }
-    );
-    await ctx.answerCallbackQuery();
-    await ctx.reply("/referrals");
   });
 }

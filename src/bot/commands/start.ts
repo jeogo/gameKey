@@ -1,88 +1,71 @@
 import { Bot } from "grammy";
 import { MyContext } from "../types/session";
-import KeyboardFactory from "../keyboards";
+import { removeKeyboard } from "../keyboards/persistentKeyboard";
 import * as UserRepository from "../../repositories/UserRepository";
 import { isAdmin } from "../../utils/adminUtils";
-import { processReferralCode } from "./referrals";
 
 /**
- * Handle /start command
+ * Handle /start command with username collection for new users
  */
 async function startCommand(ctx: MyContext): Promise<void> {
   try {
     if (!ctx.from) return;
     
-    // Handle start with parameters (like referral codes)
-    if (ctx.match) {
-      const param = ctx.match.toString();
+    // Check if user exists
+    let user = await UserRepository.findUserByTelegramId(ctx.from.id);
+    
+    if (!user) {
+      // New user - ask for username first
+      ctx.session.step = "waiting_username";
       
-      // Handle referral codes
-      if (param.startsWith("ref_")) {
-        const referralCode = param.substring(4);
-        await processReferralCode(ctx, referralCode);
-      }
+      const welcomeMessage = `🎮 *Welcome to GameKey Store!*\n\n` +
+        `👋 Hi there! We're excited to have you!\n\n` +
+        `📝 To get started, please tell me:\n` +
+        `**What username would you like to use?**\n\n` +
+        `💡 *Just type your preferred username below*`;
+      
+      await ctx.reply(welcomeMessage, {
+        parse_mode: "Markdown"
+      });
+      return;
     }
     
-    // Check if user exists in database
-    const user = await UserRepository.findUserByTelegramId(ctx.from.id);
+    // Existing user - show main interface
+    await showMainInterface(ctx, user);
     
-    if (user) {
-      // User exists, show main menu
-      ctx.session.step = "approved";
-      
-      // Get user's GCoin balance
-      const formattedBalance = user.gcoinBalance.toLocaleString('en-US');
-      
-      await ctx.reply(
-        `👋 Welcome to GameKey Store!\n\n` +
-        `Current GCoin balance: *${formattedBalance} GCoin*\n\n` +
-        `Choose one of the options below to continue:`,
-        {
-          parse_mode: "Markdown",
-          reply_markup: KeyboardFactory.mainMenu()
-        }
-      );
-    } else {
-      // New user, start registration flow
-      ctx.session.step = "terms";
-      
-      const isAdminUser = isAdmin(ctx.from.id);
-      
-      if (isAdminUser) {
-        // Admin users get auto-approved
-        const newUser = await UserRepository.createOrUpdateUser({
-          telegramId: ctx.from.id,
-          username: ctx.from.username
-        });
-        
-        ctx.session.step = "approved";
-        
-        await ctx.reply(
-          `👋 Welcome to GameKey Control Panel!\n\n` +
-          `You have been recognized as an administrator. You have access to all features.`,
-          {
-            reply_markup: KeyboardFactory.mainMenu()
-          }
-        );
-      } else {
-        // Regular user registration with terms
-        await ctx.reply(
-          "👋 Welcome to GameKey Store!\n\n" +
-          "To proceed, please read and accept the terms of service:\n\n" +
-          "1. This bot is used only for purchasing digital products.\n" +
-          "2. All sales are final and non-refundable.\n" +
-          "3. We are not responsible for issues resulting from misuse.\n\n" +
-          "Do you agree to these terms?",
-          {
-            reply_markup: KeyboardFactory.terms()
-          }
-        );
-      }
-    }
   } catch (error) {
     console.error("Error in start command:", error);
-    await ctx.reply("Sorry, an error occurred while processing your request. Please try again later.");
+    await ctx.reply("❌ Error occurred. Please try again.");
   }
+}
+
+/**
+ * Show main interface for existing users
+ */
+async function showMainInterface(ctx: MyContext, user: any): Promise<void> {
+  // Set session as approved for existing users
+  ctx.session.step = "approved";
+  
+  const username = user.username || ctx.from?.first_name || "Gamer";
+  
+  // Clean welcome message without keyboard
+  const welcomeMessage = `🎮 *GameKey Store*\n\n` +
+    `👋 Welcome back ${username}!\n\n` +
+    `🛍️ Digital games with instant delivery\n` +
+    `💳 Secure payments • 📞 24/7 support\n\n` +
+    `*Available Commands:*\n` +
+    `/menu - Show main menu\n` +
+    `/products - Browse products\n` +
+    `/orders - View your orders\n` +
+    `/profile - View your profile\n` +
+    `/help - Get help\n` +
+    `/support - Contact support`;
+  
+  // Send welcome message with removed keyboard
+  await ctx.reply(welcomeMessage, {
+    parse_mode: "Markdown",
+    reply_markup: removeKeyboard()
+  });
 }
 
 export function registerStartCommand(bot: Bot<MyContext>): void {

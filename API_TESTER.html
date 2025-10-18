@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎮 GameKey Store - API Documentation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: white;
+            margin-top: 20px;
+            margin-bottom: 20px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        .header {
+            text-align: center;
+            padding: 40px 0;
+            background: linear-gradient(135deg, #2C3E50, #3498DB);
+            color: white;
+            border-radius: 10px;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            font-size: 3em;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+        
+        .quick-links {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+        
+        .quick-link {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            transition: transform 0.3s ease;
+            border-left: 4px solid #3498DB;
+        }
+        
+        .quick-link:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        
+        .quick-link h3 {
+            color: #2C3E50;
+            margin-bottom: 10px;
+        }
+        
+        .quick-link a {
+            color: #3498DB;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        
+        .endpoint-section {
+            margin-bottom: 40px;
+            background: #f8f9fa;
+            padding: 30px;
+            border-radius: 10px;
+            border-left: 5px solid #27AE60;
+        }
+        
+        .endpoint-section h2 {
+            color: #2C3E50;
+            margin-bottom: 20px;
+            font-size: 2em;
+        }
+        
+        .endpoint {
+            background: white;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #E74C3C;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .method {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 5px;
+            color: white;
+            font-weight: bold;
+            font-size: 0.9em;
+            margin-right: 10px;
+        }
+        
+        .method.get { background: #27AE60; }
+        .method.post { background: #E67E22; }
+        .method.put { background: #3498DB; }
+        .method.delete { background: #E74C3C; }
+        
+        .endpoint-url {
+            font-family: 'Courier New', monospace;
+            background: #2C3E50;
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-size: 1.1em;
+        }
+        
+        .code-block {
+            background: #2C3E50;
+            color: #ECF0F1;
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            margin: 15px 0;
+        }
+        
+        .json {
+            color: #A569BD;
+        }
+        
+        .test-button {
+            background: #27AE60;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.3s ease;
+        }
+        
+        .test-button:hover {
+            background: #219A52;
+        }
+        
+        .response-area {
+            margin-top: 15px;
+            padding: 15px;
+            background: #ECF0F1;
+            border-radius: 5px;
+            display: none;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-200 { background: #27AE60; }
+        .status-400 { background: #E67E22; }
+        .status-404 { background: #E74C3C; }
+        .status-500 { background: #8E44AD; }
+        
+        .nav-tabs {
+            display: flex;
+            background: #34495E;
+            border-radius: 10px 10px 0 0;
+            overflow: hidden;
+            margin-bottom: 0;
+        }
+        
+        .nav-tab {
+            padding: 15px 25px;
+            background: #34495E;
+            color: white;
+            text-decoration: none;
+            transition: background 0.3s ease;
+            border: none;
+            cursor: pointer;
+        }
+        
+        .nav-tab:hover, .nav-tab.active {
+            background: #2C3E50;
+        }
+        
+        .tab-content {
+            background: white;
+            padding: 30px;
+            border-radius: 0 0 10px 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        
+        .footer {
+            text-align: center;
+            padding: 30px;
+            background: #2C3E50;
+            color: white;
+            border-radius: 10px;
+            margin-top: 40px;
+        }
+        
+        .footer a {
+            color: #3498DB;
+            text-decoration: none;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                margin: 10px;
+                padding: 15px;
+            }
+            
+            .header h1 {
+                font-size: 2em;
+            }
+            
+            .quick-links {
+                grid-template-columns: 1fr;
+            }
+            
+            .nav-tabs {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🎮 GameKey Store API</h1>
+            <p>Complete REST API Documentation & Interactive Testing</p>
+        </div>
+        
+        <!-- Quick Links -->
+        <div class="quick-links">
+            <div class="quick-link">
+                <h3>🚀 Base URL</h3>
+                <code>http://localhost:3000/api</code>
+            </div>
+            <div class="quick-link">
+                <h3>📚 Swagger Docs</h3>
+                <a href="http://localhost:3000/api-docs" target="_blank">Interactive API Explorer</a>
+            </div>
+            <div class="quick-link">
+                <h3>💚 Health Check</h3>
+                <a href="http://localhost:3000/health" target="_blank">System Status</a>
+            </div>
+            <div class="quick-link">
+                <h3>📊 Performance</h3>
+                <a href="http://localhost:3000/api/performance" target="_blank">API Metrics</a>
+            </div>
+        </div>
+        
+        <!-- Navigation Tabs -->
+        <div class="nav-tabs">
+            <button class="nav-tab active" onclick="showTab('users')">👤 Users</button>
+            <button class="nav-tab" onclick="showTab('products')">🎮 Products</button>
+            <button class="nav-tab" onclick="showTab('orders')">🛒 Orders</button>
+            <button class="nav-tab" onclick="showTab('payments')">💳 Payments</button>
+            <button class="nav-tab" onclick="showTab('categories')">🏷️ Categories</button>
+            <button class="nav-tab" onclick="showTab('notifications')">🔔 Notifications</button>
+        </div>
+        
+        <!-- Tab Contents -->
+        <div id="users" class="tab-content">
+            <h2>👤 Users API</h2>
+            
+            <div class="endpoint">
+                <span class="method get">GET</span>
+                <strong>Get All Users</strong>
+                <div class="endpoint-url">/api/users?page=1&limit=20</div>
+                <p>Retrieve paginated list of users with optional filtering</p>
+                <button class="test-button" onclick="testEndpoint('GET', '/api/users', null, 'users-all')">Test Endpoint</button>
+                <div id="users-all" class="response-area"></div>
+            </div>
+            
+            <div class="endpoint">
+                <span class="method get">GET</span>
+                <strong>Get User by ID</strong>
+                <div class="endpoint-url">/api/users/{id}</div>
+                <p>Retrieve specific user by MongoDB Object ID</p>
+                <input type="text" id="userId" placeholder="Enter User ID" style="margin: 10px 0; padding: 8px; width: 300px;">
+                <button class="test-button" onclick="testEndpointWithParam('GET', '/api/users/', 'userId', null, 'users-single')">Test Endpoint</button>
+                <div id="users-single" class="response-area"></div>
+            </div>
+            
+            <div class="endpoint">
+                <span class="method post">POST</span>
+                <strong>Send Message to User</strong>
+                <div class="endpoint-url">/api/users/{userId}/send-message</div>
+                <textarea id="userMessage" placeholder='{"message": "Hello!", "type": "info"}' style="width: 100%; margin: 10px 0; padding: 10px; height: 80px;"></textarea>
+                <button class="test-button" onclick="testUserMessage()">Send Message</button>
+                <div id="user-message" class="response-area"></div>
+            </div>
+        </div>
+        
+        <div id="products" class="tab-content" style="display: none;">
+            <h2>🎮 Products API</h2>
+            
+            <div class="endpoint">
+                <span class="method get">GET</span>
+                <strong>Get All Products</strong>
+                <div class="endpoint-url">/api/products?page=1&limit=20</div>
+                <p>Browse the complete product catalog with filtering options</p>
+                <button class="test-button" onclick="testEndpoint('GET', '/api/products', null, 'products-all')">Test Endpoint</button>
+                <div id="products-all" class="response-area"></div>
+            </div>
+            
+            <div class="endpoint">
+                <span class="method get">GET</span>
+                <strong>Search Products</strong>
+                <div class="endpoint-url">/api/products?search=steam&minPrice=10&maxPrice=100</div>
+                <p>Search products with price filtering</p>
+                <button class="test-button" onclick="testEndpoint('GET', '/api/products?search=steam&minPrice=10&maxPrice=100', null, 'products-search')">Test Search</button>
+                <div id="products-search" class="response-area"></div>
+            </div>
+            
+            <div class="endpoint">
+                <span class="method post">POST</span>
+                <strong>Create Product</strong>
+                <div class="endpoint-url">/api/products</div>
+                <textarea id="productData" placeholder='{"name": "Test Product", "price": 19.99, "categoryId": "...", "isAvailable": true, "digitalContent": ["KEY123"]}' style="width: 100%; margin: 10px 0; padding: 10px; height: 100px;"></textarea>
+                <button class="test-button" onclick="testCreateProduct()">Create Product</button>
+                <div id="product-create" class="response-area"></div>
+            </div>
+        </div>
+        
+        <div id="orders" class="tab-content" style="display: none;">
+            <h2>🛒 Orders API</h2>
+            
+            <div class="endpoint">
+                <span class="method get">GET</span>
+                <strong>Get All Orders</strong>
+                <div class="endpoint-url">/api/orders?page=1&limit=20</div>
+                <p>Retrieve all orders with pagination and filtering</p>
+                <button class="test-button" onclick="testEndpoint('GET', '/api/orders', null, 'orders-all')">Test Endpoint</button>
+                <div id="orders-all" class="response-area"></div>
+            </div>
+            
+            <div class="endpoint">
+                <span class="method get">GET</span>
+                <strong>Get User Orders</strong>
+                <div class="endpoint-url">/api/orders/user/{userId}</div>
+                <input type="text" id="orderUserId" placeholder="Enter User ID" style="margin: 10px 0; padding: 8px; width: 300px;">
+                <button class="test-button" onclick="testEndpointWithParam('GET', '/api/orders/user/', 'orderUserId', null, 'orders-user')">Get User Orders</button>
+                <div id="orders-user" class="response-area"></div>
+            </div>
+            
+            <div class="endpoint">
+                <span class="method post">POST</span>
+                <strong>Create Order</strong>
+                <div class="endpoint-url">/api/orders</div>
+                <textarea id="orderData" placeholder='{"userId": "...", "productId": "...", "quantity": 1}' style="width: 100%; margin: 10px 0; padding: 10px; height: 80px;"></textarea>
+                <button class="test-button" onclick="testCreateOrder()">Create Order</button>
+                <div id="order-create" class="response-area"></div>
+            </div>
+        </div>
+        
+        <div id="payments" class="tab-content" style="display: none;">
+            <h2>💳 Payments API</h2>
+            
+            <div class="endpoint">
+                <span class="method get">GET</span>
+                <strong>Get All Payments</strong>
+                <div class="endpoint-url">/api/payments</div>
+                <p>Retrieve all payment transactions</p>
+                <button class="test-button" onclick="testEndpoint('GET', '/api/payments', null, 'payments-all')">Test Endpoint</button>
+                <div id="payments-all" class="response-area"></div>
+            </div>
+            
+            <div class="endpoint">
+                <span class="method get">GET</span>
+                <strong>Payment Statistics</strong>
+                <div class="endpoint-url">/api/payments/stats/summary</div>
+                <p>Get comprehensive payment analytics</p>
+                <button class="test-button" onclick="testEndpoint('GET', '/api/payments/stats/summary', null, 'payments-stats')">Get Stats</button>
+                <div id="payments-stats" class="response-area"></div>
+            </div>
+            
+            <div class="endpoint">
+                <span class="method get">GET</span>
+                <strong>Check Payment Status</strong>
+                <div class="endpoint-url">/api/payments/{id}/check</div>
+                <input type="text" id="paymentId" placeholder="Enter Payment ID" style="margin: 10px 0; padding: 8px; width: 300px;">
+                <button class="test-button" onclick="testEndpointWithParam('GET', '/api/payments/', 'paymentId', '/check', 'payment-check')">Check Status</button>
+                <div id="payment-check" class="response-area"></div>
+            </div>
+        </div>
+        
+        <div id="categories" class="tab-content" style="display: none;">
+            <h2>🏷️ Categories API</h2>
+            
+            <div class="endpoint">
+                <span class="method get">GET</span>
+                <strong>Get All Categories</strong>
+                <div class="endpoint-url">/api/categories</div>
+                <p>Retrieve all product categories</p>
+                <button class="test-button" onclick="testEndpoint('GET', '/api/categories', null, 'categories-all')">Test Endpoint</button>
+                <div id="categories-all" class="response-area"></div>
+            </div>
+            
+            <div class="endpoint">
+                <span class="method post">POST</span>
+                <strong>Create Category</strong>
+                <div class="endpoint-url">/api/categories</div>
+                <textarea id="categoryData" placeholder='{"name": "New Category", "description": "Category description", "isActive": true, "sortOrder": 1}' style="width: 100%; margin: 10px 0; padding: 10px; height: 80px;"></textarea>
+                <button class="test-button" onclick="testCreateCategory()">Create Category</button>
+                <div id="category-create" class="response-area"></div>
+            </div>
+        </div>
+        
+        <div id="notifications" class="tab-content" style="display: none;">
+            <h2>🔔 Notifications API</h2>
+            
+            <div class="endpoint">
+                <span class="method get">GET</span>
+                <strong>Get All Notifications</strong>
+                <div class="endpoint-url">/api/notifications</div>
+                <p>Retrieve system notifications</p>
+                <button class="test-button" onclick="testEndpoint('GET', '/api/notifications', null, 'notifications-all')">Test Endpoint</button>
+                <div id="notifications-all" class="response-area"></div>
+            </div>
+            
+            <div class="endpoint">
+                <span class="method get">GET</span>
+                <strong>Get User Notifications</strong>
+                <div class="endpoint-url">/api/notifications/user/{userId}</div>
+                <input type="text" id="notifUserId" placeholder="Enter User ID" style="margin: 10px 0; padding: 8px; width: 300px;">
+                <button class="test-button" onclick="testEndpointWithParam('GET', '/api/notifications/user/', 'notifUserId', null, 'notifications-user')">Get User Notifications</button>
+                <div id="notifications-user" class="response-area"></div>
+            </div>
+        </div>
+        
+        <!-- Footer -->
+        <div class="footer">
+            <p>🎮 <strong>GameKey Store API</strong> - Digital Gaming Products with Instant Delivery</p>
+            <p>Support: <a href="https://t.me/jeogo">@jeogo</a> | Documentation: <a href="http://localhost:3000/api-docs">Swagger UI</a></p>
+        </div>
+    </div>
+
+    <script>
+        const baseUrl = 'http://localhost:3000';
+        
+        function showTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.style.display = 'none';
+            });
+            
+            // Remove active class from all nav tabs
+            document.querySelectorAll('.nav-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show selected tab
+            document.getElementById(tabName).style.display = 'block';
+            
+            // Add active class to clicked tab
+            event.target.classList.add('active');
+        }
+        
+        async function testEndpoint(method, url, body, responseId) {
+            const responseDiv = document.getElementById(responseId);
+            responseDiv.style.display = 'block';
+            responseDiv.innerHTML = '<div style="color: #3498DB;">🔄 Loading...</div>';
+            
+            try {
+                const options = {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                };
+                
+                if (body) {
+                    options.body = JSON.stringify(body);
+                }
+                
+                const response = await fetch(baseUrl + url, options);
+                const data = await response.json();
+                
+                const statusClass = response.ok ? 'status-200' : 'status-400';
+                responseDiv.innerHTML = `
+                    <div style="margin-bottom: 10px;">
+                        <span class="status-indicator ${statusClass}"></span>
+                        <strong>Status: ${response.status}</strong>
+                    </div>
+                    <div class="code-block">
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    </div>
+                `;
+            } catch (error) {
+                responseDiv.innerHTML = `
+                    <div style="color: #E74C3C; margin-bottom: 10px;">
+                        <span class="status-indicator status-500"></span>
+                        <strong>Error: ${error.message}</strong>
+                    </div>
+                `;
+            }
+        }
+        
+        async function testEndpointWithParam(method, baseUrl_path, inputId, suffix, responseId) {
+            const paramValue = document.getElementById(inputId).value;
+            if (!paramValue) {
+                alert('Please enter a value for the parameter');
+                return;
+            }
+            
+            const fullUrl = baseUrl_path + paramValue + (suffix || '');
+            await testEndpoint(method, fullUrl, null, responseId);
+        }
+        
+        async function testUserMessage() {
+            const userId = document.getElementById('userId').value;
+            const messageText = document.getElementById('userMessage').value;
+            
+            if (!userId || !messageText) {
+                alert('Please enter both User ID and message');
+                return;
+            }
+            
+            try {
+                const messageData = JSON.parse(messageText);
+                await testEndpoint('POST', `/api/users/${userId}/send-message`, messageData, 'user-message');
+            } catch (error) {
+                alert('Invalid JSON format in message');
+            }
+        }
+        
+        async function testCreateProduct() {
+            const productText = document.getElementById('productData').value;
+            
+            if (!productText) {
+                alert('Please enter product data');
+                return;
+            }
+            
+            try {
+                const productData = JSON.parse(productText);
+                await testEndpoint('POST', '/api/products', productData, 'product-create');
+            } catch (error) {
+                alert('Invalid JSON format in product data');
+            }
+        }
+        
+        async function testCreateOrder() {
+            const orderText = document.getElementById('orderData').value;
+            
+            if (!orderText) {
+                alert('Please enter order data');
+                return;
+            }
+            
+            try {
+                const orderData = JSON.parse(orderText);
+                await testEndpoint('POST', '/api/orders', orderData, 'order-create');
+            } catch (error) {
+                alert('Invalid JSON format in order data');
+            }
+        }
+        
+        async function testCreateCategory() {
+            const categoryText = document.getElementById('categoryData').value;
+            
+            if (!categoryText) {
+                alert('Please enter category data');
+                return;
+            }
+            
+            try {
+                const categoryData = JSON.parse(categoryText);
+                await testEndpoint('POST', '/api/categories', categoryData, 'category-create');
+            } catch (error) {
+                alert('Invalid JSON format in category data');
+            }
+        }
+        
+        // Auto-test health check on load
+        window.onload = function() {
+            testEndpoint('GET', '/health', null, 'health-check');
+        };
+    </script>
+</body>
+</html>

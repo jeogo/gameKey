@@ -1,12 +1,63 @@
 import express, { Request, Response } from "express";
-import { nowPaymentsService } from "../services/NowPaymentsService";
 import * as PaymentRepository from "../repositories/PaymentRepository";
 import * as PaymentController from "../controllers/PaymentController";
 import * as OrderRepository from "../repositories/OrderRepository";
+import { 
+  handleValidationErrors, 
+  validateObjectId, 
+  validateUpdatePaymentStatus,
+  validatePagination,
+  successResponse, 
+  errorResponse,
+  sanitizeInput 
+} from '../utils/apiValidation';
+import { processPaymentWebhook } from '../bot/handlers/paymentHandlers';
+import { validateNowPaymentsSignature, checkWebhookRateLimit } from '../utils/webhookSecurity';
 
 const router = express.Router();
 
-// Get all transactions
+/**
+ * @swagger
+ * /payments:
+ *   get:
+ *     tags: [Payments]
+ *     summary: Get all payment transactions
+ *     description: Retrieve paginated list of payment transactions with filtering
+ *     parameters:
+ *       - $ref: '#/components/parameters/PageParam'
+ *       - $ref: '#/components/parameters/LimitParam'
+ *       - name: status
+ *         in: query
+ *         description: Filter by payment status
+ *         schema:
+ *           type: string
+ *           enum: [pending, completed, failed, cancelled, refunded]
+ *       - name: provider
+ *         in: query
+ *         description: Filter by payment provider
+ *         schema:
+ *           type: string
+ *           enum: [nowpayments, paypal, stripe]
+ *       - name: userId
+ *         in: query
+ *         description: Filter by user ID
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Transactions retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/PaginatedResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/PaymentTransaction'
+ */
 router.get("/", async (req: Request, res: Response) => {
   try {
     const page = req.query.page ? parseInt(req.query.page as string) : 1;
@@ -178,73 +229,115 @@ router.get("/stats/summary", async (req: Request, res: Response) => {
   }
 });
 
-// NOWPayments Return URLs
-router.get("/nowpayments-return", async (req: Request, res: Response) => {
+/**
+ * @swagger
+ * /payments/webhook/nowpayments:
+ *   post:
+ *     tags: [Payments]
+ *     summary: NOWPayments webhook endpoint
+ *     description: |
+ *       Secure webhook endpoint for processing NOWPayments payment status updates.
+ *       
+ *       **Security Features:**
+ *       - HMAC SHA512 signature verification in production
+ *       - Rate limiting (100 requests/minute per IP)
+ *       - IP whitelist validation
+ *       - Request sanitization
+ *       
+ *       **Supported Payment Statuses:**
+ *       - `waiting` → `pending`
+ *       - `confirming` → `pending`  
+ *       - `confirmed` → `completed`
+ *       - `finished` → `completed`
+ *       - `failed` → `failed`
+ *       - `expired` → `failed`
+ *       - `refunded` → `refunded`
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               payment_id:
+ *                 type: string
+ *                 description: NOWPayments payment ID
+ *               payment_status:
+ *                 type: string
+ *                 description: Payment status from NOWPayments
+ *               order_id:
+ *                 type: string
+ *                 description: Your internal order ID
+ *               price_amount:
+ *                 type: number
+ *                 description: Original payment amount
+ *               actually_paid:
+ *                 type: number
+ *                 description: Amount actually paid by user
+ *     responses:
+ *       200:
+ *         description: Webhook processed successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     received:
+ *                       type: boolean
+ *                     processed:
+ *                       type: boolean
+ *       401:
+ *         description: Invalid signature
+ *       429:
+ *         description: Rate limit exceeded
+ *       400:
+ *         description: Webhook processing failed
+ */
+router.post("/webhook/nowpayments", async (req: Request, res: Response): Promise<any> => {
   try {
-    const transactionId = req.query.txId as string;
-    if (transactionId) {
-      await PaymentController.nowpaymentsSuccess(req, res);
+    console.log('🔔 NOWPayments webhook received:', JSON.stringify(req.body, null, 2));
+    
+    // Rate limiting protection
+    const clientIP = req.ip || req.connection.remoteAddress || 'unknown';
+    if (!checkWebhookRateLimit(`webhook_${clientIP}`, 100, 60000)) {
+      console.warn('⚠️ Webhook rate limit exceeded for IP:', clientIP);
+      return res.status(429).json(errorResponse('Rate limit exceeded', 'RATE_LIMIT'));
+    }
+    
+    // Validate webhook signature in production
+    if (process.env.NODE_ENV === 'production') {
+      const isValidSignature = validateNowPaymentsSignature(req);
+      if (!isValidSignature) {
+        console.error('❌ Invalid webhook signature from IP:', clientIP);
+        return res.status(401).json(errorResponse('Invalid signature', 'INVALID_SIGNATURE'));
+      }
+      console.log('✅ Webhook signature validated successfully');
     } else {
-      res.status(200).send('Payment completed! You can close this window and return to the bot.');
+      console.log('🔧 Development mode: Skipping signature validation');
     }
+    
+    // Process webhook with enhanced handler
+    const processed = await processPaymentWebhook('nowpayments', req.body);
+    
+    if (!processed) {
+      console.error('❌ Webhook processing failed');
+      return res.status(400).json(errorResponse('Webhook processing failed', 'PROCESSING_ERROR'));
+    }
+    
+    console.log('✅ NOWPayments webhook processed successfully');
+    res.json(successResponse({ received: true, processed: true }));
+    res.status(200).json({ status: 'processed' });
+    
   } catch (error) {
-    console.error("Error handling NOWPayments return:", error);
-    res.status(500).send("Error processing payment return");
+    console.error('❌ Error processing NOWPayments webhook:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
-
-router.get("/nowpayments-cancel", async (req: Request, res: Response) => {
-  try {
-    res.status(200).send('Payment was cancelled. You can close this window and return to the bot.');
-  } catch (error) {
-    console.error("Error handling NOWPayments cancel:", error);
-    res.status(500).send("Error processing payment cancellation");
-  }
-});
-
-// Add NOWPayments webhook endpoint
-router.post(
-  "/nowpayments-webhook",
-  express.json(),
-  async (req: Request, res: Response): Promise<any> => {
-    try {
-      console.log("NOWPayments webhook received:", req.body);
-      const event = req.body;
-      
-      if (!event || !event.payment_id) {
-        console.log("Invalid webhook payload:", event);
-        return res.status(400).send("Invalid webhook payload");
-      }
-      
-      const transactionData = nowPaymentsService.processWebhook(event);
-      if (!transactionData) {
-        return res.status(400).send("Could not process webhook data");
-      }
-      
-      // Find existing transaction by external ID
-      const existingTx = await PaymentRepository.findTransactionByExternalId(event.payment_id);
-      
-      if (existingTx) {
-        // Update transaction status
-        await PaymentRepository.updateTransactionStatus(existingTx._id!, transactionData.status, {
-          webhookData: event
-        });
-        
-        // Handle payment completion
-        if (transactionData.status === 'completed') {
-          const { handlePaymentSuccess } = require('../bot/handlers/paymentHandlers');
-          await handlePaymentSuccess(existingTx._id!);
-        }
-      } else {
-        console.log("Transaction not found for payment_id:", event.payment_id);
-      }
-      
-      res.status(200).send("Webhook processed successfully");
-    } catch (error) {
-      console.error("Error handling NOWPayments webhook:", error);
-      res.status(500).send("Error processing webhook");
-    }
-  }
-);
 
 export default router;

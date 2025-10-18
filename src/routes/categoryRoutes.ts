@@ -3,7 +3,40 @@ import * as CategoryController from '../controllers/CategoryController';
 
 const router = express.Router();
 
-// Get all categories
+/**
+ * @swagger
+ * /categories:
+ *   get:
+ *     tags: [Categories]
+ *     summary: Get all product categories
+ *     description: |
+ *       Retrieve all product categories with their details.
+ *       Categories are used to organize products in the store.
+ *     responses:
+ *       200:
+ *         description: Categories retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Category'
+ *             example:
+ *               success: true
+ *               data:
+ *                 - _id: "507f1f77bcf86cd799439014"
+ *                   name: "Gaming Gift Cards"
+ *                   description: "Steam, PlayStation, Xbox gift cards"
+ *                   sortOrder: 1
+ *                   isActive: true
+ *                   createdAt: "2025-10-01T08:00:00Z"
+ */
 router.get('/', async (_req: Request, res: Response) => {
   try {
     const categories = await CategoryController.getAllCategories();
@@ -14,6 +47,20 @@ router.get('/', async (_req: Request, res: Response) => {
   }
 });
 
+/**
+ * @swagger
+ * /categories/{id}:
+ *   get:
+ *     tags: [Categories]
+ *     summary: Get category by ID
+ *     parameters:
+ *       - $ref: '#/components/parameters/ObjectIdParam'
+ *     responses:
+ *       200:
+ *         description: Category found
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
+ */
 // Get category by ID
 router.get('/:id', async (req: Request, res: Response):Promise<any> => {
   try {
@@ -31,6 +78,30 @@ router.get('/:id', async (req: Request, res: Response):Promise<any> => {
   }
 });
 
+/**
+ * @swagger
+ * /categories:
+ *   post:
+ *     tags: [Categories]
+ *     summary: Create a new category
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [name]
+ *             properties:
+ *               name:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Category created
+ *       400:
+ *         $ref: '#/components/responses/BadRequest'
+ */
 // Create a new category
 router.post('/', async (req: Request, res: Response):Promise<any>=> {
   try {
@@ -48,6 +119,31 @@ router.post('/', async (req: Request, res: Response):Promise<any>=> {
   }
 });
 
+/**
+ * @swagger
+ * /categories/{id}:
+ *   put:
+ *     tags: [Categories]
+ *     summary: Update a category
+ *     parameters:
+ *       - $ref: '#/components/parameters/ObjectIdParam'
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Category updated
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
+ */
 // Update category
 router.put('/:id', async (req: Request, res: Response) :Promise<any>=> {
   try {
@@ -71,6 +167,20 @@ router.put('/:id', async (req: Request, res: Response) :Promise<any>=> {
   }
 });
 
+/**
+ * @swagger
+ * /categories/{id}:
+ *   delete:
+ *     tags: [Categories]
+ *     summary: Delete a category
+ *     parameters:
+ *       - $ref: '#/components/parameters/ObjectIdParam'
+ *     responses:
+ *       204:
+ *         description: Category deleted
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
+ */
 // Delete category
 router.delete('/:id', async (req: Request, res: Response) :Promise<any>=> {
   try {

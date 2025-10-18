@@ -3,7 +3,57 @@ import * as NotificationController from '../controllers/NotificationController';
 
 const router = express.Router();
 
-// Get all notifications
+/**
+ * @swagger
+ * /notifications:
+ *   get:
+ *     tags: [Notifications]
+ *     summary: Get user notifications
+ *     description: |
+ *       Retrieve list of notifications for users.
+ *       
+ *       **Notification Types:**
+ *       - `order` - Order status updates
+ *       - `payment` - Payment confirmations  
+ *       - `system` - System announcements
+ *     parameters:
+ *       - name: userId
+ *         in: query
+ *         description: Filter by user ID
+ *         schema:
+ *           type: string
+ *           example: 507f1f77bcf86cd799439011
+ *       - name: type
+ *         in: query
+ *         description: Filter by notification type
+ *         schema:
+ *           type: string
+ *           enum: [order, payment, system]
+ *     responses:
+ *       200:
+ *         description: Notifications retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Notification'
+ *             example:
+ *               success: true
+ *               data:
+ *                 - _id: "507f1f77bcf86cd799439020"
+ *                   userId: "507f1f77bcf86cd799439011"
+ *                   type: "order"
+ *                   title: "Order Delivered"
+ *                   message: "Your Steam Gift Card has been delivered!"
+ *                   isRead: false
+ *                   createdAt: "2025-10-02T12:30:00Z"
+ */
 router.get('/', async (_req: Request, res: Response) => {
   try {
     const notifications = await NotificationController.getAllNotifications();
@@ -14,6 +64,20 @@ router.get('/', async (_req: Request, res: Response) => {
   }
 });
 
+/**
+ * @swagger
+ * /notifications/{id}:
+ *   get:
+ *     tags: [Notifications]
+ *     summary: Get notification by ID
+ *     parameters:
+ *       - $ref: '#/components/parameters/ObjectIdParam'
+ *     responses:
+ *       200:
+ *         description: Notification found
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
+ */
 // Get notification by ID
 router.get('/:id', async (req: Request, res: Response): Promise<any> => {
   try {
@@ -31,6 +95,36 @@ router.get('/:id', async (req: Request, res: Response): Promise<any> => {
   }
 });
 
+/**
+ * @swagger
+ * /notifications:
+ *   post:
+ *     tags: [Notifications]
+ *     summary: Create a notification (admin)
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [title, message, audience]
+ *             properties:
+ *               title:
+ *                 type: string
+ *               message:
+ *                 type: string
+ *               audience:
+ *                 type: string
+ *                 enum: [all_users, active_users, specific_users]
+ *               targetUserIds:
+ *                 type: array
+ *                 items: { type: string }
+ *     responses:
+ *       201:
+ *         description: Notification created
+ *       400:
+ *         $ref: '#/components/responses/BadRequest'
+ */
 // Create a new notification
 router.post('/', async (req: Request, res: Response): Promise<any> => {
   try {
@@ -58,6 +152,20 @@ router.post('/', async (req: Request, res: Response): Promise<any> => {
   }
 });
 
+/**
+ * @swagger
+ * /notifications/{id}:
+ *   delete:
+ *     tags: [Notifications]
+ *     summary: Delete a notification
+ *     parameters:
+ *       - $ref: '#/components/parameters/ObjectIdParam'
+ *     responses:
+ *       204:
+ *         description: Notification deleted
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
+ */
 // Delete notification
 router.delete('/:id', async (req: Request, res: Response): Promise<any> => {
   try {

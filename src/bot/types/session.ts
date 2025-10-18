@@ -5,7 +5,7 @@ import { Context, SessionFlavor } from "grammy";
  */
 export interface SessionData {
   // Conversation state
-  step?: "terms" | "pending" | "approved" | "support" | "buy_gcoin_custom";
+  step?: "terms" | "pending" | "approved" | "support" | "custom_payment" | "waiting_username";
   
   // For product browsing
   currentCategoryId?: string;
@@ -17,7 +17,8 @@ export interface SessionData {
   // Temporary data storage
   tempData?: {
     orderNote?: string;
-    gcoinAmount?: number;
+    paymentAmount?: number;
+    pendingOrderId?: string;
   };
 }
 

@@ -14,10 +14,10 @@ export function formatNumber(value: number): string {
 /**
  * Format a price with currency symbol
  * @param amount - The amount to format
- * @param currency - The currency code (default: 'GCoin')
+ * @param currency - The currency code (default: 'USD')
  * @returns Formatted price string
  */
-export function formatPrice(amount: number, currency: string = 'GCoin'): string {
+export function formatPrice(amount: number, currency: string = 'USD'): string {
   const formattedAmount = formatNumber(amount);
   return `${formattedAmount} ${currency}`;
 }
@@ -82,19 +82,3 @@ export function formatRelativeTime(date: Date | string | number): string {
   return `${diffYear} year${diffYear !== 1 ? 's' : ''} ago`;
 }
 
-/**
- * Add the GCoin branding to a number
- * @param amount - The GCoin amount
- * @returns Formatted GCoin string with branding
- */
-export function formatGcoin(amount: number): string {
-  return `${formatNumber(amount)} ${gcoinSymbol()}`;
-}
-
-/**
- * Get the GCoin symbol/brand text
- * @returns Stylized GCoin text
- */
-export function gcoinSymbol(): string {
-  return "GCoin";
-}
