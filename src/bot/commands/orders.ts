@@ -39,9 +39,12 @@ export async function showOrdersPage(ctx: MyContext, userId: string, page: numbe
     
     if (result.orders.length === 0 && page === 1) {
       // No orders at all
-      const message = "📭 **NO HISTORIC ORDERS FOUND**\n\n" +
-        "You don't have any orders yet.\n\n" +
-        "🛍️ Use the Products menu to browse our catalog and make your first purchase!";
+      const message = "� **NO ORDER HISTORY FOUND**\n\n" +
+        "🌟 You haven't made any purchases yet!\n\n" +
+        "� **Start Shopping:** Use the /shop command to browse our catalog\n" +
+        "💎 **Special Offers:** Check out our featured products\n" +
+        "🎮 **Gaming Keys:** Digital game keys available instantly\n\n" +
+        "Ready to make your first purchase? 🚀";
         
       if (ctx.callbackQuery) {
         await ctx.editMessageText(message, { parse_mode: "Markdown" });

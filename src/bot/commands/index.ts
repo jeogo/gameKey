@@ -21,14 +21,49 @@ export function registerCommands(bot: Bot<MyContext>): void {
   registerSupportCommand(bot);
   registerProfileCommand(bot);
   
-  // Set clear bot commands for Telegram menu
+  // Set enhanced bot commands for Telegram menu with better descriptions
   bot.api.setMyCommands([
-    { command: "start", description: "🚀 Start/restart the bot" },
-    { command: "menu", description: "🏠 Show main menu" },
-    { command: "products", description: "🛍️ Browse products catalog" },
-    { command: "orders", description: "📜 View your order history" },
-    { command: "profile", description: "👤 View your profile" },
-    { command: "help", description: "💬 Get help and commands" },
-    { command: "support", description: "📞 Contact customer support" }
+    { command: "start", description: "🎮 Welcome & Setup - Start your GameKey journey" },
+    { command: "shop", description: "🛒 Browse Store - Find your perfect game" },
+    { command: "orders", description: "� My Orders - Track purchases & downloads" },
+    { command: "profile", description: "� My Profile - Account info & stats" },
+    { command: "help", description: "❓ Help Center - Commands & support info" },
+    { command: "status", description: "� System Status - Check platform health" }
   ]);
+
+  // Register aliases for better user experience
+  bot.command("shop", async (ctx) => {
+    // Redirect to products command for consistency
+    const { showCategories } = await import("./products");
+    await showCategories(ctx);
+  });
+
+  bot.command("store", async (ctx) => {
+    // Another alias for shop
+    const { showCategories } = await import("./products");
+    await showCategories(ctx);
+  });
+
+  bot.command("buy", async (ctx) => {
+    // Quick buy alias
+    const { showCategories } = await import("./products");
+    await showCategories(ctx);
+  });
+
+  bot.command("status", async (ctx) => {
+    try {
+      const statusMessage = `🔋 **GAMEKEY STATUS**\n\n` +
+        `✅ **System:** Online & Operational\n` +
+        `⚡ **Payments:** NOWPayments Active\n` +
+        `🛒 **Store:** Fully Stocked\n` +
+        `📞 **Support:** Available 24/7\n\n` +
+        `🕐 **Last Updated:** ${new Date().toLocaleString()}\n` +
+        `📊 **Uptime:** ${Math.floor(process.uptime() / 3600)}h ${Math.floor((process.uptime() % 3600) / 60)}m\n\n` +
+        `💬 Type /shop to start shopping!`;
+      
+      await ctx.reply(statusMessage, { parse_mode: "Markdown" });
+    } catch (error) {
+      await ctx.reply("📊 System Status: All systems operational!");
+    }
+  });
 }

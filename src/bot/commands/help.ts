@@ -20,26 +20,32 @@ async function helpCommand(ctx: MyContext): Promise<void> {
       return;
     }
     
-    // Clean help message with commands
-    const helpMessage = `💬 *GameKey Help & Commands*\n\n` +
-      `🎮 *Available Commands:*\n\n` +
-      `🛍️ /products - Browse our gaming catalog\n` +
-      `📜 /orders - View your purchase history\n` +
-      `👤 /profile - Your account & statistics\n` +
-      `🏠 /menu - Return to main menu\n` +
-      `📞 /support - Contact customer support\n\n` +
-      `🔥 *How to purchase:*\n` +
-      `1. Type /products to browse\n` +
-      `2. Choose a game you want\n` +
-      `3. Complete secure crypto payment\n` +
-      `4. Get instant delivery!\n\n` +
-      `💎 *Payment Methods:*\n` +
+    // Enhanced help message with better organization
+    const helpMessage = `GAMEKEY HELP CENTER\n\n` +
+      `Digital gaming marketplace guide\n\n` +
+      `SHOPPING COMMANDS\n` +
+      `/shop - Browse our gaming catalog\n` +
+      `/store - Same as /shop (alias)\n` +
+      `/buy - Quick access to store\n\n` +
+      `ACCOUNT COMMANDS\n` +
+      `/orders - Your purchase history\n` +
+      `/profile - Account information\n` +
+      `/status - Account status\n\n` +
+      `HOW TO PURCHASE\n` +
+      `1. Type /shop to browse games\n` +
+      `2. Choose your favorite title\n` +
+      `3. Select crypto payment method\n` +
+      `4. Receive instant delivery\n\n` +
+      `PAYMENT METHODS\n` +
+      `• USDT (Recommended)\n` +
       `• Bitcoin (BTC)\n` +
       `• Ethereum (ETH)\n` +
-      `• USDT (Tether)\n` +
       `• Litecoin (LTC)\n\n` +
-      `📞 *Need help?* Contact @jeogo\n\n` +
-      `💡 *Just type any command to get started!*`;
+      `SUPPORT\n` +
+      `Contact: @jeogo\n` +
+      `Response time: Under 1 hour\n` +
+      `Available: 24/7\n\n` +
+      `Ready to start? Type /shop now!`;
     
     await ctx.reply(helpMessage, {
       parse_mode: "Markdown",

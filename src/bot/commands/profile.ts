@@ -35,24 +35,38 @@ async function showProfile(ctx: MyContext): Promise<void> {
     const memberSince = new Date(user.createdAt);
     const daysSinceMember = Math.floor((Date.now() - memberSince.getTime()) / (1000 * 60 * 60 * 24));
     
-    // Create comprehensive profile message
-    const profileMessage = `� *YOUR PROFILE*\n\n` +
-      `━━━ *Account Info* ━━━\n` +
+    // Create enhanced profile message with better formatting
+    const profileMessage = `👤 **YOUR GAMEKEY PROFILE**\n\n` +
+      `━━━ **🎮 ACCOUNT INFO** ━━━\n` +
       `📛 **Name:** ${ctx.from.first_name} ${ctx.from.last_name || ''}\n` +
       `🆔 **Username:** ${user.username || 'Not set'}\n` +
-      `� **Member since:** ${memberSince.toLocaleDateString()} (${daysSinceMember} days)\n\n` +
+      `📅 **Member since:** ${memberSince.toLocaleDateString()} (${daysSinceMember} days)\n` +
+      `⭐ **Status:** ${completedOrders.length >= 10 ? 'VIP Customer' : completedOrders.length >= 5 ? 'Regular Customer' : 'New Customer'}\n\n` +
       
-      `━━━ *Purchase Statistics* ━━━\n` +
+      `━━━ **📊 PURCHASE STATS** ━━━\n` +
       `📜 **Total Orders:** ${orderCount}\n` +
       `✅ **Completed:** ${completedOrders.length}\n` +
       `⏳ **Pending:** ${pendingOrders.length}\n` +
-      `💰 **Total Spent:** $${totalSpent.toFixed(2)}\n\n` +
+      `💰 **Total Spent:** $${totalSpent.toFixed(2)}\n` +
+      `📈 **Average Order:** $${orderCount > 0 ? (totalSpent / completedOrders.length || 0).toFixed(2) : '0.00'}\n\n` +
       
-      `━━━ *Recent Activity* ━━━\n` +
-      `🕒 **Last Order:** ${orders.length > 0 ? new Date(orders[0].createdAt).toLocaleDateString() : 'None'}\n` +
-      `📈 **Average per Order:** $${orderCount > 0 ? (totalSpent / completedOrders.length || 0).toFixed(2) : '0.00'}\n\n` +
+      `━━━ **🕐 RECENT ACTIVITY** ━━━\n` +
+      `🛒 **Last Order:** ${orders.length > 0 ? new Date(orders[0].createdAt).toLocaleDateString() : 'No orders yet'}\n` +
+      `🎯 **Favorite Category:** ${completedOrders.length > 0 ? 'Gaming' : 'Not determined yet'}\n\n` +
       
-      `*Use the menu buttons at the bottom to navigate!*`;
+      `━━━ **🏆 ACHIEVEMENTS** ━━━\n` +
+      `${completedOrders.length > 0 ? '✅ First Purchase' : '⭕ First Purchase'}\n` +
+      `${completedOrders.length >= 5 ? '✅ Regular Customer' : '⭕ Regular Customer (5 orders)'}\n` +
+      `${totalSpent >= 100 ? '✅ VIP Member' : '⭕ VIP Member ($100+ spent)'}\n` +
+      `${orderCount >= 10 ? '✅ Frequent Buyer' : '⭕ Frequent Buyer (10 orders)'}\n\n` +
+      
+      `━━━ **🎉 ACHIEVEMENTS** ━━━\n` +
+      `${completedOrders.length >= 1 ? '🥉 First Purchase' : '⚪ First Purchase (locked)'}\n` +
+      `${completedOrders.length >= 5 ? '🥈 Regular Shopper' : '⚪ Regular Shopper (locked)'}\n` +
+      `${completedOrders.length >= 10 ? '🥇 VIP Customer' : '⚪ VIP Customer (locked)'}\n` +
+      `${totalSpent >= 100 ? '💎 High Spender' : '⚪ High Spender (locked)'}\n\n` +
+      
+      `💡 **Ready for more games?** Type /shop to browse!`;
     
     // Simple text message without inline keyboard
     await ctx.reply(profileMessage, {

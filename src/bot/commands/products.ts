@@ -41,12 +41,12 @@ export async function showCategories(ctx: MyContext): Promise<void> {
     
     const categories = await CategoryRepository.findAllCategories();
     
-    let message = `🛍️ **GAMEKEY STORE**\n`;
+    let message = `� **GAMEKEY DIGITAL STORE**\n`;
     message += `════════════════════\n\n`;
-    message += `🚀 **Choose Category to Browse:**\n\n`;
+    message += `🎮 **Choose Your Gaming Category:**\n\n`;
     
     if (categories.length === 0) {
-      message += `📭 No categories available right now.\n\nPlease check back later!`;
+      message += `📭 No categories available right now.\n\nPlease check back later or contact support!`;
       
       const response = ctx.callbackQuery ? ctx.editMessageText : ctx.reply;
       await response(message, { parse_mode: "Markdown" });
@@ -57,9 +57,9 @@ export async function showCategories(ctx: MyContext): Promise<void> {
     const keyboard = new InlineKeyboard();
     
     for (const category of categories) {
-      // Remove emoji from category name for cleaner button
+      // Clean category name for better button text
       const cleanName = category.name.replace(/🎮|🎵|🔑|👤/g, '').trim();
-      keyboard.text(`🛒 ${cleanName}`, `category_${category._id}`).row();
+      keyboard.text(`🎯 ${cleanName}`, `category_${category._id}`).row();
     }
     
     // Use safe edit or reply helper
@@ -261,7 +261,22 @@ export async function showPurchaseConfirmation(ctx: MyContext, productId: string
 }
 
 export function registerProductsCommand(bot: Bot<MyContext>): void {
+  // Main products command (legacy support)
   bot.command("products", async (ctx) => {
+    await showCategories(ctx);
+  });
+  
+  // Enhanced shop command (primary)
+  bot.command("shop", async (ctx) => {
+    await showCategories(ctx);
+  });
+  
+  // Additional aliases for better UX
+  bot.command("store", async (ctx) => {
+    await showCategories(ctx);
+  });
+  
+  bot.command("buy", async (ctx) => {
     await showCategories(ctx);
   });
 }

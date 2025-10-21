@@ -18,11 +18,15 @@ async function startCommand(ctx: MyContext): Promise<void> {
       // New user - ask for username first
       ctx.session.step = "waiting_username";
       
-      const welcomeMessage = `🎮 *Welcome to GameKey Store!*\n\n` +
-        `👋 Hi there! We're excited to have you!\n\n` +
-        `📝 To get started, please tell me:\n` +
-        `**What username would you like to use?**\n\n` +
-        `💡 *Just type your preferred username below*`;
+      const welcomeMessage = `WELCOME TO GAMEKEY STORE\n\n` +
+        `Digital Gaming Marketplace\n\n` +
+        `Welcome! We need to set up your account.\n\n` +
+        `Setup Required:\n` +
+        `Please provide a username for your account.\n\n` +
+        `What username would you like to use?\n\n` +
+        `Type your preferred username below\n` +
+        `Example: GamerPro2024, YourName, etc.\n\n` +
+        `This will only take a moment.`;
       
       await ctx.reply(welcomeMessage, {
         parse_mode: "Markdown"
@@ -48,20 +52,21 @@ async function showMainInterface(ctx: MyContext, user: any): Promise<void> {
   
   const username = user.username || ctx.from?.first_name || "Gamer";
   
-  // Clean welcome message without keyboard
-  const welcomeMessage = `🎮 *GameKey Store*\n\n` +
-    `👋 Welcome back ${username}!\n\n` +
-    `🛍️ Digital games with instant delivery\n` +
-    `💳 Secure payments • 📞 24/7 support\n\n` +
-    `*Available Commands:*\n` +
-    `/menu - Show main menu\n` +
-    `/products - Browse products\n` +
-    `/orders - View your orders\n` +
-    `/profile - View your profile\n` +
-    `/help - Get help\n` +
-    `/support - Contact support`;
+  // Enhanced welcome message for returning users
+  const welcomeMessage = `🎮 **GAMEKEY STORE**\n\n` +
+    `👋 **Welcome back, ${username}!**\n\n` +
+    `🛍️ *Premium digital games with instant delivery*\n` +
+    `💳 *Secure crypto payments • 📞 24/7 support*\n\n` +
+    `🚀 **QUICK ACTIONS:**\n` +
+    `🛒 /shop - Browse our game collection\n` +
+    `📦 /orders - View your purchases\n` +
+    `👤 /profile - Check your account\n` +
+    `❓ /help - Get help & support\n` +
+    `📊 /status - System status\n\n` +
+    `💎 **Ready to find your next favorite game?**\n` +
+    `*Type /shop to start browsing!*`;
   
-  // Send welcome message with removed keyboard
+  // Send enhanced welcome message
   await ctx.reply(welcomeMessage, {
     parse_mode: "Markdown",
     reply_markup: removeKeyboard()

@@ -22,16 +22,20 @@ async function showMainMenu(ctx: MyContext): Promise<void> {
     
     const username = ctx.from.first_name || ctx.from.username || "Gamer";
     
-    const menuMessage = `🎮 *GameKey Store - Main Menu*\n\n` +
-      `👋 Hello ${username}!\n\n` +
-      `🏪 *Available Commands:*\n\n` +
-      `🛍️ /products - Browse our game collection\n` +
-      `📜 /orders - View your purchase history\n` +
-      `� /profile - Check your account details\n` +
-      `💬 /help - Get help and information\n` +
-      `📞 /support - Contact customer support\n\n` +
-      `━━━━━━━━━━━━━━━━━━━━━\n` +
-      `🎯 *Simply type any command to get started!*`;
+    const menuMessage = `🎮 **GameKey Store - Main Menu**\n\n` +
+      `👋 Welcome back, ${username}!\n\n` +
+      `━━━ **🛒 SHOPPING** ━━━\n` +
+      `🛍️ /shop - Browse our game collection\n` +
+      `💎 /products - View all available items\n` +
+      `🎯 /featured - Check featured deals\n\n` +
+      `━━━ **� ACCOUNT** ━━━\n` +
+      `📦 /orders - View your purchase history\n` +
+      `👤 /profile - Check your account details\n` +
+      `🔄 /status - Check order status\n\n` +
+      `━━━ **💬 SUPPORT** ━━━\n` +
+      `❓ /help - Get assistance\n` +
+      `🆘 /support - Contact customer service\n\n` +
+      `Ready to find your next favorite game? 🚀`;
     
     if (ctx.callbackQuery) {
       await ctx.editMessageText(menuMessage, {
