@@ -18,7 +18,7 @@ export class AppError extends Error {
 }
 
 export class ValidationError extends AppError {
-  constructor(message: string, fields?: string[]) {
+  constructor(message: string, _fields?: string[]) {
     super(message, 400, 'VALIDATION_ERROR');
     this.name = 'ValidationError';
   }
@@ -57,7 +57,7 @@ export class DatabaseError extends AppError {
   constructor(message: string, originalError?: Error) {
     super(message, 500, 'DATABASE_ERROR');
     this.name = 'DatabaseError';
-    
+
     if (originalError) {
       this.stack = originalError.stack;
     }
@@ -91,7 +91,7 @@ export const globalErrorHandler = (
   err: Error,
   req: Request,
   res: Response,
-  next: NextFunction
+  _next: NextFunction
 ): void => {
   // Log error for monitoring
   console.error('Error caught by global handler:', {
@@ -101,13 +101,15 @@ export const globalErrorHandler = (
     method: req.method,
     ip: req.ip,
     userAgent: req.get('User-Agent'),
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
 
   // Track error in performance monitor
-  performanceMonitor.monitor('error.global', async () => {
-    throw err;
-  }).catch(() => {}); // Silent catch to avoid recursion
+  performanceMonitor
+    .monitor('error.global', async () => {
+      throw err;
+    })
+    .catch(() => {}); // Silent catch to avoid recursion
 
   let statusCode = 500;
   let code = 'INTERNAL_SERVER_ERROR';
@@ -143,15 +145,15 @@ export const globalErrorHandler = (
       message,
       statusCode,
       timestamp: new Date().toISOString(),
-      path: req.path
-    }
+      path: req.path,
+    },
   };
 
   // Add stack trace in development
   if (process.env.NODE_ENV === 'development') {
     errorResponse.error.details = {
       stack: err.stack,
-      originalError: err.name
+      originalError: err.name,
     };
   }
 
@@ -186,24 +188,24 @@ export const withErrorHandling = async <T>(
     return await operation();
   } catch (error) {
     console.error(`Database error in ${context}:`, error);
-    
+
     if (error instanceof Error) {
       // Handle specific MongoDB errors
       if (error.name === 'MongoError' || error.name === 'MongoServerError') {
         throw new DatabaseError(`Database operation failed in ${context}`, error);
       }
-      
+
       // Handle validation errors
       if (error.name === 'ValidationError') {
         throw new ValidationError(`Validation failed in ${context}: ${error.message}`);
       }
-      
+
       // Handle duplicate key errors
       if ('code' in error && error.code === 11000) {
         throw new ConflictError('Resource already exists with provided data');
       }
     }
-    
+
     throw error;
   }
 };
@@ -217,19 +219,19 @@ export const withServiceContext = async <T>(
   fn: () => Promise<T>
 ): Promise<T> => {
   const timer = performanceMonitor.startTimer(`service.${service}.${operation}`);
-  
+
   try {
     const result = await fn();
     timer.end(true);
     return result;
   } catch (error) {
     timer.end(false, error instanceof Error ? error.message : 'Unknown error');
-    
+
     // Add service context to error
     if (error instanceof Error) {
       error.message = `[${service}:${operation}] ${error.message}`;
     }
-    
+
     throw error;
   }
 };
@@ -237,39 +239,30 @@ export const withServiceContext = async <T>(
 /**
  * Controller response wrapper
  */
-export const sendResponse = <T>(
-  res: Response,
-  data: T,
-  message = 'Success',
-  statusCode = 200
-) => {
+export const sendResponse = <T>(res: Response, data: T, message = 'Success', statusCode = 200) => {
   res.status(statusCode).json({
     success: true,
     message,
     data,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
 };
 
 /**
  * Controller error response wrapper
  */
-export const sendError = (
-  res: Response,
-  error: AppError | Error,
-  statusCode?: number
-) => {
+export const sendError = (res: Response, error: AppError | Error, statusCode?: number) => {
   const code = error instanceof AppError ? error.code : 'UNKNOWN_ERROR';
   const status = statusCode || (error instanceof AppError ? error.statusCode : 500);
-  
+
   res.status(status).json({
     success: false,
     error: {
       code,
       message: error.message,
       statusCode: status,
-      timestamp: new Date().toISOString()
-    }
+      timestamp: new Date().toISOString(),
+    },
   });
 };
 
@@ -282,22 +275,22 @@ export const withRetry = async <T>(
   delay = 1000
 ): Promise<T> => {
   let lastError: Error;
-  
+
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       return await operation();
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
-      
+
       if (attempt === maxRetries) {
         break;
       }
-      
+
       // Exponential backoff
       await new Promise(resolve => setTimeout(resolve, delay * Math.pow(2, attempt - 1)));
     }
   }
-  
+
   throw lastError!;
 };
 
@@ -340,7 +333,7 @@ class CircuitBreaker {
   private onFailure() {
     this.failures++;
     this.lastFailTime = Date.now();
-    
+
     if (this.failures >= this.threshold) {
       this.state = 'OPEN';
     }

@@ -1,14 +1,13 @@
 import express, { Request, Response } from 'express';
 import * as ProductController from '../controllers/ProductController';
-import { 
-  handleValidationErrors, 
-  validateObjectId, 
+import {
+  handleValidationErrors,
+  validateObjectId,
   validateCreateProduct,
-  validateUpdateProduct,
   validatePagination,
-  successResponse, 
+  successResponse,
   errorResponse,
-  sanitizeInput 
+  sanitizeInput,
 } from '../utils/apiValidation';
 
 const router = express.Router();
@@ -61,50 +60,49 @@ router.use(sanitizeInput);
  *                       items:
  *                         $ref: '#/components/schemas/Product'
  */
-router.get('/', 
-  validatePagination,
-  handleValidationErrors,
-  async (req: Request, res: Response) => {
-    try {
-      const page = parseInt(req.query.page as string) || 1;
-      const limit = parseInt(req.query.limit as string) || 20;
-      const categoryId = req.query.categoryId as string;
-      const isAvailable = req.query.available === 'true';
-      
-      const products = await ProductController.getAllProducts({
-        categoryId,
-        isAvailable: isAvailable ? true : undefined
-      });
-      
-      // Apply manual pagination
-      const startIndex = (page - 1) * limit;
-      const endIndex = startIndex + limit;
-      const paginatedProducts = products.slice(startIndex, endIndex);
-      
-      res.json(successResponse(paginatedProducts, {
+router.get('/', validatePagination, handleValidationErrors, async (req: Request, res: Response) => {
+  try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 20;
+    const categoryId = req.query.categoryId as string;
+    const isAvailable = req.query.available === 'true';
+
+    const products = await ProductController.getAllProducts({
+      categoryId,
+      isAvailable: isAvailable ? true : undefined,
+    });
+
+    // Apply manual pagination
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit;
+    const paginatedProducts = products.slice(startIndex, endIndex);
+
+    res.json(
+      successResponse(paginatedProducts, {
         page,
         limit,
-        total: products.length
-      }));
-    } catch (error) {
-      console.error('Error in GET /products:', error);
-      res.status(500).json(errorResponse('Failed to retrieve products', 'FETCH_ERROR'));
-    }
+        total: products.length,
+      })
+    );
+  } catch (error) {
+    console.error('Error in GET /products:', error);
+    res.status(500).json(errorResponse('Failed to retrieve products', 'FETCH_ERROR'));
   }
-);
+});
 
 // Get product by ID
-router.get('/:id', 
+router.get(
+  '/:id',
   validateObjectId('id'),
   handleValidationErrors,
   async (req: Request, res: Response): Promise<any> => {
     try {
       const product = await ProductController.getProductById(req.params.id);
-      
+
       if (!product) {
         return res.status(404).json(errorResponse('Product not found', 'PRODUCT_NOT_FOUND'));
       }
-      
+
       res.json(successResponse(product));
     } catch (error) {
       console.error(`Error in GET /products/${req.params.id}:`, error);
@@ -112,65 +110,66 @@ router.get('/:id',
     }
   }
 );
-  /**
-   * @swagger
-   * /products:
-   *   post:
-   *     tags: [Products]
-   *     summary: Create a new product
-   *     description: Creates a new digital product that can be sold to users.
-   *     requestBody:
-   *       required: true
-   *       content:
-   *         application/json:
-   *           schema:
-   *             type: object
-   *             required: [name, categoryId, price]
-   *             properties:
-   *               name:
-   *                 type: string
-   *                 example: Steam Gift Card $50
-   *               categoryId:
-   *                 type: string
-   *                 example: 507f1f77bcf86cd799439013
-   *               price:
-   *                 type: number
-   *                 example: 47.99
-   *               description:
-   *                 type: string
-   *                 example: Digital Steam gift card code
-   *               isAvailable:
-   *                 type: boolean
-   *                 example: true
-   *               digitalContent:
-   *                 type: array
-   *                 items:
-   *                   type: string
-   *                 example: ["CODE-123-ABC"]
-   *     responses:
-   *       201:
-   *         description: Product created successfully
-   *         content:
-   *           application/json:
-   *             schema:
-   *               allOf:
-   *                 - $ref: '#/components/schemas/ApiResponse'
-   *                 - type: object
-   *                   properties:
-   *                     data:
-   *                       $ref: '#/components/schemas/Product'
-   *       400:
-   *         $ref: '#/components/responses/BadRequest'
-   */
+/**
+ * @swagger
+ * /products:
+ *   post:
+ *     tags: [Products]
+ *     summary: Create a new product
+ *     description: Creates a new digital product that can be sold to users.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [name, categoryId, price]
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 example: Steam Gift Card $50
+ *               categoryId:
+ *                 type: string
+ *                 example: 507f1f77bcf86cd799439013
+ *               price:
+ *                 type: number
+ *                 example: 47.99
+ *               description:
+ *                 type: string
+ *                 example: Digital Steam gift card code
+ *               isAvailable:
+ *                 type: boolean
+ *                 example: true
+ *               digitalContent:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 example: ["CODE-123-ABC"]
+ *     responses:
+ *       201:
+ *         description: Product created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/Product'
+ *       400:
+ *         $ref: '#/components/responses/BadRequest'
+ */
 
 // Create a new product
-router.post('/', 
+router.post(
+  '/',
   validateCreateProduct,
   handleValidationErrors,
   async (req: Request, res: Response): Promise<any> => {
     try {
       const productData = req.body;
-      
+
       // Set defaults for optional fields
       const newProduct = await ProductController.createProduct({
         name: productData.name,
@@ -178,15 +177,16 @@ router.post('/',
         price: productData.price,
         description: productData.description || '',
         isAvailable: productData.isAvailable ?? true,
-        digitalContent: productData.digitalContent || []
+        digitalContent: productData.digitalContent || [],
       });
-      
+
       res.status(201).json(successResponse(newProduct));
     } catch (error) {
       console.error('Error in POST /products:', error);
       res.status(500).json(errorResponse('Failed to create product', 'CREATE_ERROR'));
+    }
   }
-});
+);
 
 /**
  * @swagger
@@ -226,12 +226,12 @@ router.post('/',
  *         $ref: '#/components/responses/NotFound'
  */
 // Update product
-router.put('/:id', async (req: Request, res: Response) :Promise<any>=> {
+router.put('/:id', async (req: Request, res: Response): Promise<any> => {
   try {
     // Prevent updating critical fields
     delete req.body._id;
     delete req.body.createdAt;
-    
+
     const updatedProduct = await ProductController.updateProduct(req.params.id, req.body);
     if (!updatedProduct) {
       return res.status(404).json({ error: 'Product not found' });
@@ -259,7 +259,7 @@ router.put('/:id', async (req: Request, res: Response) :Promise<any>=> {
  *         $ref: '#/components/responses/NotFound'
  */
 // Delete product
-router.delete('/:id', async (req: Request, res: Response) :Promise<any>=> {
+router.delete('/:id', async (req: Request, res: Response): Promise<any> => {
   try {
     const deleted = await ProductController.deleteProduct(req.params.id);
     if (!deleted) {

@@ -1,8 +1,8 @@
-import { Bot } from "grammy";
-import { MyContext } from "../types/session";
-import { removeKeyboard } from "../keyboards/persistentKeyboard";
-import * as UserRepository from "../../repositories/UserRepository";
-import { isAdmin } from "../../utils/adminUtils";
+import { Bot } from 'grammy';
+import { MyContext } from '../types/session';
+import { removeKeyboard, createMainKeyboard } from '../keyboards/persistentKeyboard';
+import * as UserRepository from '../../repositories/UserRepository';
+import { formatMessage } from '../../config/botConfig';
 
 /**
  * Handle /start command with username collection for new users
@@ -10,36 +10,25 @@ import { isAdmin } from "../../utils/adminUtils";
 async function startCommand(ctx: MyContext): Promise<void> {
   try {
     if (!ctx.from) return;
-    
+
     // Check if user exists
-    let user = await UserRepository.findUserByTelegramId(ctx.from.id);
-    
+    const user = await UserRepository.findUserByTelegramId(ctx.from.id);
+
     if (!user) {
       // New user - ask for username first
-      ctx.session.step = "waiting_username";
-      
-      const welcomeMessage = `WELCOME TO GAMEKEY STORE\n\n` +
-        `Digital Gaming Marketplace\n\n` +
-        `Welcome! We need to set up your account.\n\n` +
-        `Setup Required:\n` +
-        `Please provide a username for your account.\n\n` +
-        `What username would you like to use?\n\n` +
-        `Type your preferred username below\n` +
-        `Example: GamerPro2024, YourName, etc.\n\n` +
-        `This will only take a moment.`;
-      
-      await ctx.reply(welcomeMessage, {
-        parse_mode: "Markdown"
+      ctx.session.step = 'waiting_username';
+
+      await ctx.reply(formatMessage('WELCOME_NEW_USER'), {
+        reply_markup: removeKeyboard(),
       });
       return;
     }
-    
+
     // Existing user - show main interface
     await showMainInterface(ctx, user);
-    
   } catch (error) {
-    console.error("Error in start command:", error);
-    await ctx.reply("❌ Error occurred. Please try again.");
+    console.error('Error in start command:', error);
+    await ctx.reply('❌ Error occurred. Please try again.');
   }
 }
 
@@ -48,31 +37,16 @@ async function startCommand(ctx: MyContext): Promise<void> {
  */
 async function showMainInterface(ctx: MyContext, user: any): Promise<void> {
   // Set session as approved for existing users
-  ctx.session.step = "approved";
-  
-  const username = user.username || ctx.from?.first_name || "Gamer";
-  
-  // Enhanced welcome message for returning users
-  const welcomeMessage = `🎮 **GAMEKEY STORE**\n\n` +
-    `👋 **Welcome back, ${username}!**\n\n` +
-    `🛍️ *Premium digital games with instant delivery*\n` +
-    `💳 *Secure crypto payments • 📞 24/7 support*\n\n` +
-    `🚀 **QUICK ACTIONS:**\n` +
-    `🛒 /shop - Browse our game collection\n` +
-    `📦 /orders - View your purchases\n` +
-    `👤 /profile - Check your account\n` +
-    `❓ /help - Get help & support\n` +
-    `📊 /status - System status\n\n` +
-    `💎 **Ready to find your next favorite game?**\n` +
-    `*Type /shop to start browsing!*`;
-  
-  // Send enhanced welcome message
-  await ctx.reply(welcomeMessage, {
-    parse_mode: "Markdown",
-    reply_markup: removeKeyboard()
+  ctx.session.step = 'approved';
+
+  const username = user.username || ctx.from?.first_name || 'Gamer';
+
+  // Send welcome message with reply keyboard
+  await ctx.reply(formatMessage('WELCOME_EXISTING_USER', { username }), {
+    reply_markup: createMainKeyboard(),
   });
 }
 
 export function registerStartCommand(bot: Bot<MyContext>): void {
-  bot.command("start", startCommand);
+  bot.command('start', startCommand);
 }

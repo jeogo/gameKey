@@ -1,4 +1,4 @@
-import { Collection, ObjectId } from 'mongodb';
+import { ObjectId } from 'mongodb';
 import { connectToDatabase, getDb } from '../database/connection';
 import { IUser } from '../models/User';
 
@@ -7,7 +7,7 @@ function mapUser(user: any): IUser | null {
   if (!user) return null;
   return {
     ...user,
-    _id: user._id?.toString()
+    _id: user._id?.toString(),
   };
 }
 
@@ -46,7 +46,7 @@ export async function findAllAcceptedUsers(): Promise<IUser[]> {
     await connectToDatabase();
     const collection = getDb().collection('users');
     const users = await collection.find({}).toArray();
-    
+
     return users.map(user => mapUser(user)).filter((user): user is IUser => user !== null);
   } catch (error) {
     console.error('Error finding users:', error);
@@ -62,23 +62,23 @@ export async function createOrUpdateUser(userData: {
   await connectToDatabase();
   const collection = getDb().collection('users');
   const now = new Date();
-  
+
   // Check if user already exists
   const existingUser = await collection.findOne({ telegramId: userData.telegramId });
-  
+
   if (existingUser) {
     // Update existing user
     const updateData = {
       ...userData,
-      updatedAt: now
+      updatedAt: now,
     };
-    
+
     const result = await collection.findOneAndUpdate(
       { telegramId: userData.telegramId },
       { $set: updateData },
       { returnDocument: 'after' }
     );
-    
+
     const mappedUser = mapUser(result);
     if (!mappedUser) {
       throw new Error('Failed to update user');
@@ -90,9 +90,9 @@ export async function createOrUpdateUser(userData: {
       telegramId: userData.telegramId,
       username: userData.username,
       createdAt: now,
-      updatedAt: now
+      updatedAt: now,
     };
-    
+
     const result = await collection.insertOne(newUser);
     return { ...newUser, _id: result.insertedId.toString() };
   }
@@ -103,18 +103,18 @@ export async function updateUser(id: string, userData: Partial<IUser>): Promise<
     await connectToDatabase();
     const collection = getDb().collection('users');
     const objectId = new ObjectId(id);
-    
+
     const updateData = {
       ...userData,
-      updatedAt: new Date()
+      updatedAt: new Date(),
     };
-    
+
     const result = await collection.findOneAndUpdate(
       { _id: objectId },
       { $set: updateData },
       { returnDocument: 'after' }
     );
-    
+
     return mapUser(result);
   } catch (error) {
     console.error('Error updating user:', error);

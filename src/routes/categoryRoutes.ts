@@ -62,15 +62,15 @@ router.get('/', async (_req: Request, res: Response) => {
  *         $ref: '#/components/responses/NotFound'
  */
 // Get category by ID
-router.get('/:id', async (req: Request, res: Response):Promise<any> => {
+router.get('/:id', async (req: Request, res: Response): Promise<any> => {
   try {
     const id = req.params.id;
     const category = await CategoryController.getCategoryById(id);
-    
+
     if (!category) {
       return res.status(404).json({ error: 'Category not found' });
     }
-    
+
     res.json(category);
   } catch (error) {
     console.error(`Error in GET /categories/${req.params.id}:`, error);
@@ -103,14 +103,14 @@ router.get('/:id', async (req: Request, res: Response):Promise<any> => {
  *         $ref: '#/components/responses/BadRequest'
  */
 // Create a new category
-router.post('/', async (req: Request, res: Response):Promise<any>=> {
+router.post('/', async (req: Request, res: Response): Promise<any> => {
   try {
     const { name, description } = req.body;
-    
+
     if (!name) {
       return res.status(400).json({ error: 'Category name is required' });
     }
-    
+
     const newCategory = await CategoryController.createCategory({ name, description });
     res.status(201).json(newCategory);
   } catch (error) {
@@ -145,21 +145,21 @@ router.post('/', async (req: Request, res: Response):Promise<any>=> {
  *         $ref: '#/components/responses/NotFound'
  */
 // Update category
-router.put('/:id', async (req: Request, res: Response) :Promise<any>=> {
+router.put('/:id', async (req: Request, res: Response): Promise<any> => {
   try {
     const id = req.params.id;
     const categoryData = req.body;
-    
+
     // Prevent updating critical fields
     delete categoryData._id;
     delete categoryData.createdAt;
-    
+
     const updatedCategory = await CategoryController.updateCategory(id, categoryData);
-    
+
     if (!updatedCategory) {
       return res.status(404).json({ error: 'Category not found' });
     }
-    
+
     res.json(updatedCategory);
   } catch (error) {
     console.error(`Error in PUT /categories/${req.params.id}:`, error);
@@ -182,15 +182,15 @@ router.put('/:id', async (req: Request, res: Response) :Promise<any>=> {
  *         $ref: '#/components/responses/NotFound'
  */
 // Delete category
-router.delete('/:id', async (req: Request, res: Response) :Promise<any>=> {
+router.delete('/:id', async (req: Request, res: Response): Promise<any> => {
   try {
     const id = req.params.id;
     const result = await CategoryController.deleteCategory(id);
-    
+
     if (!result) {
       return res.status(404).json({ error: 'Category not found or already deleted' });
     }
-    
+
     res.status(204).send();
   } catch (error) {
     console.error(`Error in DELETE /categories/${req.params.id}:`, error);

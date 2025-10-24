@@ -17,7 +17,7 @@ class PerformanceMonitor {
    */
   startTimer(operation: string): { end: (success?: boolean, error?: string) => void } {
     const startTime = performance.now();
-    
+
     return {
       end: (success = true, error?: string) => {
         const duration = performance.now() - startTime;
@@ -26,9 +26,9 @@ class PerformanceMonitor {
           duration,
           timestamp: new Date(),
           success,
-          error
+          error,
         });
-      }
+      },
     };
   }
 
@@ -52,7 +52,7 @@ class PerformanceMonitor {
    */
   private recordMetric(metric: PerformanceMetric): void {
     this.metrics.push(metric);
-    
+
     // Keep only the last MAX_METRICS entries
     if (this.metrics.length > this.MAX_METRICS) {
       this.metrics.splice(0, this.metrics.length - this.MAX_METRICS);
@@ -60,12 +60,16 @@ class PerformanceMonitor {
 
     // Log slow operations (over 1 second)
     if (metric.duration > 1000) {
-      console.warn(`⚠️ Slow operation detected: ${metric.operation} took ${metric.duration.toFixed(2)}ms`);
+      console.warn(
+        `⚠️ Slow operation detected: ${metric.operation} took ${metric.duration.toFixed(2)}ms`
+      );
     }
 
     // Log very fast operations that benefit from optimization tracking
     if (metric.duration < 50 && metric.success) {
-      console.log(`⚡ Fast operation: ${metric.operation} completed in ${metric.duration.toFixed(2)}ms`);
+      console.log(
+        `⚡ Fast operation: ${metric.operation} completed in ${metric.duration.toFixed(2)}ms`
+      );
     }
   }
 
@@ -80,7 +84,7 @@ class PerformanceMonitor {
     successRate: number;
     recentErrors: string[];
   } {
-    const filteredMetrics = operation 
+    const filteredMetrics = operation
       ? this.metrics.filter(m => m.operation === operation)
       : this.metrics;
 
@@ -91,7 +95,7 @@ class PerformanceMonitor {
         minDuration: 0,
         maxDuration: 0,
         successRate: 0,
-        recentErrors: []
+        recentErrors: [],
       };
     }
 
@@ -108,7 +112,7 @@ class PerformanceMonitor {
       minDuration: Math.min(...durations),
       maxDuration: Math.max(...durations),
       successRate: (successful / filteredMetrics.length) * 100,
-      recentErrors
+      recentErrors,
     };
   }
 
@@ -116,18 +120,14 @@ class PerformanceMonitor {
    * Get top slowest operations
    */
   getSlowestOperations(limit = 10): PerformanceMetric[] {
-    return [...this.metrics]
-      .sort((a, b) => b.duration - a.duration)
-      .slice(0, limit);
+    return [...this.metrics].sort((a, b) => b.duration - a.duration).slice(0, limit);
   }
 
   /**
    * Get operations by time range
    */
   getMetricsByTimeRange(startTime: Date, endTime: Date): PerformanceMetric[] {
-    return this.metrics.filter(m => 
-      m.timestamp >= startTime && m.timestamp <= endTime
-    );
+    return this.metrics.filter(m => m.timestamp >= startTime && m.timestamp <= endTime);
   }
 
   /**
@@ -150,7 +150,7 @@ class PerformanceMonitor {
   generateReport(): string {
     const stats = this.getStats();
     const slowest = this.getSlowestOperations(5);
-    
+
     return `
 🔍 Performance Monitor Report
 ==========================
@@ -162,10 +162,14 @@ Min/Max Duration: ${stats.minDuration.toFixed(2)}ms / ${stats.maxDuration.toFixe
 🐌 Slowest Operations:
 ${slowest.map(m => `  • ${m.operation}: ${m.duration.toFixed(2)}ms (${m.success ? '✅' : '❌'})`).join('\n')}
 
-${stats.recentErrors.length > 0 ? `
+${
+  stats.recentErrors.length > 0
+    ? `
 ❌ Recent Errors:
 ${stats.recentErrors.map(e => `  • ${e}`).join('\n')}
-` : ''}
+`
+    : ''
+}
     `.trim();
   }
 }

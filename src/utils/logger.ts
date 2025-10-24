@@ -87,7 +87,7 @@ class Logger {
       level,
       message,
       component,
-      ...data
+      ...data,
     };
 
     // Add to history
@@ -100,7 +100,7 @@ class Logger {
     const colorCode = this.getColorCode(level);
     const resetCode = '\x1b[0m';
     const componentText = component ? `[${component}]` : '';
-    
+
     console.log(
       `${colorCode}${entry.timestamp} [${level.toUpperCase()}] ${componentText} ${message}${resetCode}`,
       data ? JSON.stringify(data, null, 2) : ''
@@ -117,11 +117,16 @@ class Logger {
    */
   private getColorCode(level: LogLevel): string {
     switch (level) {
-      case 'error': return '\x1b[31m'; // Red
-      case 'warn': return '\x1b[33m';  // Yellow
-      case 'info': return '\x1b[36m';  // Cyan
-      case 'debug': return '\x1b[37m'; // White
-      default: return '\x1b[0m';       // Reset
+      case 'error':
+        return '\x1b[31m'; // Red
+      case 'warn':
+        return '\x1b[33m'; // Yellow
+      case 'info':
+        return '\x1b[36m'; // Cyan
+      case 'debug':
+        return '\x1b[37m'; // White
+      default:
+        return '\x1b[0m'; // Reset
     }
   }
 
@@ -145,18 +150,14 @@ class Logger {
    * Get logs by level
    */
   getLogsByLevel(level: LogLevel, count = 100): LogEntry[] {
-    return this.logHistory
-      .filter(entry => entry.level === level)
-      .slice(-count);
+    return this.logHistory.filter(entry => entry.level === level).slice(-count);
   }
 
   /**
    * Get logs by component
    */
   getLogsByComponent(component: string, count = 100): LogEntry[] {
-    return this.logHistory
-      .filter(entry => entry.component === component)
-      .slice(-count);
+    return this.logHistory.filter(entry => entry.component === component).slice(-count);
   }
 
   /**
@@ -196,31 +197,22 @@ export const logger = new Logger();
  */
 export function apiLoggingMiddleware(req: any, res: any, next: any) {
   const start = Date.now();
-  
-  logger.api(
-    `${req.method} ${req.path} - Request received`,
-    req.path,
-    req.method,
-    {
-      ip: req.ip,
-      userAgent: req.get('User-Agent'),
-      body: req.method !== 'GET' ? req.body : undefined
-    }
-  );
+
+  logger.api(`${req.method} ${req.path} - Request received`, req.path, req.method, {
+    ip: req.ip,
+    userAgent: req.get('User-Agent'),
+    body: req.method !== 'GET' ? req.body : undefined,
+  });
 
   res.on('finish', () => {
     const duration = Date.now() - start;
     const level = res.statusCode >= 400 ? 'error' : 'info';
-    
-    logger[level](
-      `${req.method} ${req.path} - ${res.statusCode} (${duration}ms)`,
-      'API',
-      {
-        statusCode: res.statusCode,
-        duration,
-        ip: req.ip
-      }
-    );
+
+    logger[level](`${req.method} ${req.path} - ${res.statusCode} (${duration}ms)`, 'API', {
+      statusCode: res.statusCode,
+      duration,
+      ip: req.ip,
+    });
   });
 
   next();
@@ -230,16 +222,12 @@ export function apiLoggingMiddleware(req: any, res: any, next: any) {
  * Error logging helper
  */
 export function logError(error: any, context?: string, data?: any): void {
-  logger.error(
-    error.message || 'Unknown error',
-    context,
-    {
-      stack: error.stack,
-      name: error.name,
-      code: error.code,
-      ...data
-    }
-  );
+  logger.error(error.message || 'Unknown error', context, {
+    stack: error.stack,
+    name: error.name,
+    code: error.code,
+    ...data,
+  });
 }
 
 /**
@@ -252,15 +240,11 @@ export function logPayment(
   status?: string,
   data?: any
 ): void {
-  logger.payment(
-    `Payment ${event}`,
-    transactionId,
-    {
-      amount,
-      status,
-      ...data
-    }
-  );
+  logger.payment(`Payment ${event}`, transactionId, {
+    amount,
+    status,
+    ...data,
+  });
 }
 
 /**
@@ -273,15 +257,10 @@ export function logOrder(
   productId?: string,
   data?: any
 ): void {
-  logger.order(
-    `Order ${event}`,
-    orderId,
-    userId,
-    {
-      productId,
-      ...data
-    }
-  );
+  logger.order(`Order ${event}`, orderId, userId, {
+    productId,
+    ...data,
+  });
 }
 
 /**
@@ -293,12 +272,8 @@ export function logBotInteraction(
   command?: string,
   data?: any
 ): void {
-  logger.bot(
-    `Bot ${action}`,
-    userId?.toString(),
-    {
-      command,
-      ...data
-    }
-  );
+  logger.bot(`Bot ${action}`, userId?.toString(), {
+    command,
+    ...data,
+  });
 }

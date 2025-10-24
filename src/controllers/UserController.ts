@@ -1,7 +1,6 @@
 import { IUser } from '../models/User';
 import * as UserRepository from '../repositories/UserRepository';
-import { bot } from '../bot'; // Import the bot instance
-import { successResponse, errorResponse, ApiResponse } from '../utils/apiValidation';
+import { bot } from '../bot';
 
 /**
  * Get all users - with optional filtering
@@ -23,7 +22,7 @@ export async function getUserById(id: string | number): Promise<IUser | null> {
     // If number is provided, assume it's a Telegram ID
     if (typeof id === 'number') {
       return await UserRepository.findUserByTelegramId(id);
-    } 
+    }
     // Otherwise use MongoDB ID
     return await UserRepository.findUserById(id);
   } catch (error) {
@@ -36,7 +35,7 @@ export async function getUserById(id: string | number): Promise<IUser | null> {
  * Update user
  */
 export async function updateUser(
-  id: string | number, 
+  id: string | number,
   userData: Partial<IUser>
 ): Promise<IUser | null> {
   try {
@@ -49,7 +48,7 @@ export async function updateUser(
       }
       id = user._id;
     }
-    
+
     // Update using MongoDB ID
     const updatedUser = await UserRepository.updateUser(id, userData);
 
@@ -89,7 +88,7 @@ export async function deleteUser(id: string | number): Promise<boolean> {
       }
       id = user._id;
     }
-    
+
     return await UserRepository.deleteUser(id);
   } catch (error) {
     console.error(`Error deleting user ${id}:`, error);

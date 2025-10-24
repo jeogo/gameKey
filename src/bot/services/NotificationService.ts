@@ -1,17 +1,17 @@
-import { bot } from "../../bot";
-import { getNotificationRecipients } from "../../utils/adminUtils";
+import { bot } from '../../bot';
+import { getNotificationRecipients } from '../../utils/adminUtils';
 
 /**
  * Service to send notifications to admin about important events
  */
 export class NotificationService {
-  static sendAdminAlert(arg0: { title: string; message: string; level: string; }) {
-      throw new Error("Method not implemented.");
+  static sendAdminAlert(_arg0: { title: string; message: string; level: string }) {
+    throw new Error('Method not implemented.');
   }
-  static sendInventoryAlert(arg0: { orderId: string; productId: any; userId: any; }) {
-      throw new Error("Method not implemented.");
+  static sendInventoryAlert(_arg0: { orderId: string; productId: any; userId: any }) {
+    throw new Error('Method not implemented.');
   }
-  
+
   // Get all admin IDs for notifications
   private static get adminIds(): number[] {
     return getNotificationRecipients();
@@ -32,7 +32,6 @@ export class NotificationService {
     digitalContent?: string[]; // Added digital content
     inventoryBefore?: number;
     inventoryAfter?: number;
-    
   }): Promise<void> {
     if (this.adminIds.length === 0) return;
 
@@ -46,7 +45,7 @@ export class NotificationService {
 *Quantity:* ${orderData.quantity}
 *Price:* $${orderData.price}
 *Total:* $${orderData.totalAmount}
-*Payment:* ${orderData.paymentMethod || "Direct Purchase"}
+*Payment:* ${orderData.paymentMethod || 'Direct Purchase'}
 *Time:* ${new Date().toLocaleString()}
 `;
 
@@ -63,13 +62,13 @@ export class NotificationService {
       // Add digital content details if available
       if (orderData.digitalContent && orderData.digitalContent.length > 0) {
         message += `\n*Delivered Digital Content:*\n`;
-        
+
         orderData.digitalContent.forEach((item, index) => {
           try {
             // Format as email:password
             const [email, password] = item.split(':');
             message += `${index + 1}. \`${email}:${password}\`\n`;
-          } catch (e) {
+          } catch {
             // Fallback if formatting fails
             message += `${index + 1}. \`${item}\`\n`;
           }
@@ -80,14 +79,14 @@ export class NotificationService {
       for (const adminId of this.adminIds) {
         try {
           await bot.api.sendMessage(adminId, message, {
-            parse_mode: "Markdown",
+            parse_mode: 'Markdown',
           });
         } catch (error) {
           console.error(`Failed to send order notification to admin ${adminId}:`, error);
         }
       }
     } catch (error) {
-      console.error("Failed to send order notification:", error);
+      console.error('Failed to send order notification:', error);
     }
   }
 
@@ -124,14 +123,14 @@ This is a pre-order. The product will be delivered when it becomes available.
       for (const adminId of this.adminIds) {
         try {
           await bot.api.sendMessage(adminId, message, {
-            parse_mode: "Markdown",
+            parse_mode: 'Markdown',
           });
         } catch (error) {
           console.error(`Failed to send preorder notification to admin ${adminId}:`, error);
         }
       }
     } catch (error) {
-      console.error("Failed to send preorder notification:", error);
+      console.error('Failed to send preorder notification:', error);
     }
   }
 
@@ -162,14 +161,17 @@ This is a pre-order. The product will be delivered when it becomes available.
       for (const adminId of this.adminIds) {
         try {
           await bot.api.sendMessage(adminId, message, {
-            parse_mode: "Markdown",
+            parse_mode: 'Markdown',
           });
         } catch (error) {
-          console.error(`Failed to send payment confirmation notification to admin ${adminId}:`, error);
+          console.error(
+            `Failed to send payment confirmation notification to admin ${adminId}:`,
+            error
+          );
         }
       }
     } catch (error) {
-      console.error("Failed to send payment confirmation notification:", error);
+      console.error('Failed to send payment confirmation notification:', error);
     }
   }
 
@@ -189,9 +191,9 @@ This is a pre-order. The product will be delivered when it becomes available.
 👤 *NEW USER REGISTRATION*
 
 *User ID:* ${userData.userId}
-*Username:* ${userData.username || "Not set"}
-*First Name:* ${userData.firstName || "Not set"}
-*Last Name:* ${userData.lastName || "Not set"}
+*Username:* ${userData.username || 'Not set'}
+*First Name:* ${userData.firstName || 'Not set'}
+*Last Name:* ${userData.lastName || 'Not set'}
 *Time:* ${new Date().toLocaleString()}
 
 This user is pending approval. Use the buttons below to approve or decline.
@@ -202,11 +204,11 @@ This user is pending approval. Use the buttons below to approve or decline.
         inline_keyboard: [
           [
             {
-              text: "✅ Approve",
+              text: '✅ Approve',
               callback_data: `approve_user_${userData.userId}`,
             },
             {
-              text: "❌ Decline",
+              text: '❌ Decline',
               callback_data: `decline_user_${userData.userId}`,
             },
           ],
@@ -217,15 +219,18 @@ This user is pending approval. Use the buttons below to approve or decline.
       for (const adminId of this.adminIds) {
         try {
           await bot.api.sendMessage(adminId, message, {
-            parse_mode: "Markdown",
+            parse_mode: 'Markdown',
             reply_markup: inlineKeyboard,
           });
         } catch (error) {
-          console.error(`Failed to send user registration notification to admin ${adminId}:`, error);
+          console.error(
+            `Failed to send user registration notification to admin ${adminId}:`,
+            error
+          );
         }
       }
     } catch (error) {
-      console.error("Failed to send user registration notification:", error);
+      console.error('Failed to send user registration notification:', error);
     }
   }
 
@@ -239,7 +244,7 @@ This user is pending approval. Use the buttons below to approve or decline.
     for (const adminId of this.adminIds) {
       try {
         await bot.api.sendMessage(adminId, message, {
-          parse_mode: "Markdown",
+          parse_mode: 'Markdown',
         });
       } catch (error) {
         console.error(`Failed to send admin notification to ${adminId}:`, error);
@@ -285,19 +290,19 @@ Here are your login details for ${data.productName}:
           message += `*Item ${index + 1}:*\n`;
           message += `Email: \`${email}\`\n`;
           message += `Password: \`${password}\`\n\n`;
-        } catch (e) {
+        } catch {
           // استخدام صيغة احتياطية إذا فشل التقسيم
           message += `*Item ${index + 1}:* \`${item}\`\n\n`;
         }
       });
 
       await bot.api.sendMessage(userId, message, {
-        parse_mode: "Markdown",
+        parse_mode: 'Markdown',
       });
     } catch (error) {
       console.error(`Failed to send preorder completion notification to user ${userId}:`, error);
     }
-    
+
     // إخطار المشرف عن اكتمال الطلب المسبق مع تفاصيل
     try {
       if (this.adminIds.length > 0) {
@@ -326,7 +331,7 @@ Here are your login details for ${data.productName}:
           try {
             const [email, password] = item.split(':');
             adminMessage += `${index + 1}. \`${email}:${password}\`\n`;
-          } catch (e) {
+          } catch {
             adminMessage += `${index + 1}. \`${item}\`\n`;
           }
         });
@@ -335,15 +340,18 @@ Here are your login details for ${data.productName}:
         for (const adminId of this.adminIds) {
           try {
             await bot.api.sendMessage(adminId, adminMessage, {
-              parse_mode: "Markdown",
+              parse_mode: 'Markdown',
             });
           } catch (error) {
-            console.error(`Failed to send admin notification about preorder completion to ${adminId}:`, error);
+            console.error(
+              `Failed to send admin notification about preorder completion to ${adminId}:`,
+              error
+            );
           }
         }
       }
     } catch (error) {
-      console.error("Failed to send admin notification about preorder completion:", error);
+      console.error('Failed to send admin notification about preorder completion:', error);
     }
   }
 }

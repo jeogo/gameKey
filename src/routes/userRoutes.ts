@@ -1,14 +1,14 @@
 import express from 'express';
 import { Request, Response } from 'express';
 import * as UserController from '../controllers/UserController';
-import { 
-  handleValidationErrors, 
-  validateObjectId, 
+import {
+  handleValidationErrors,
+  validateObjectId,
   validateUpdateUser,
   validatePagination,
-  successResponse, 
+  successResponse,
   errorResponse,
-  sanitizeInput 
+  sanitizeInput,
 } from '../utils/apiValidation';
 
 const router = express.Router();
@@ -50,33 +50,31 @@ router.use(sanitizeInput);
  *       500:
  *         $ref: '#/components/responses/InternalError'
  */
-router.get('/', 
-  validatePagination,
-  handleValidationErrors,
-  async (req: Request, res: Response) => {
-    try {
-      const page = parseInt(req.query.page as string) || 1;
-      const limit = parseInt(req.query.limit as string) || 20;
-      
-      // For now, get all users (can add pagination to repository later)
-      const users = await UserController.getAllUsers();
-      
-      // Apply manual pagination
-      const startIndex = (page - 1) * limit;
-      const endIndex = startIndex + limit;
-      const paginatedUsers = users.slice(startIndex, endIndex);
-      
-      res.json(successResponse(paginatedUsers, {
+router.get('/', validatePagination, handleValidationErrors, async (req: Request, res: Response) => {
+  try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 20;
+
+    // For now, get all users (can add pagination to repository later)
+    const users = await UserController.getAllUsers();
+
+    // Apply manual pagination
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit;
+    const paginatedUsers = users.slice(startIndex, endIndex);
+
+    res.json(
+      successResponse(paginatedUsers, {
         page,
         limit,
-        total: users.length
-      }));
-    } catch (error) {
-      console.error('Error in GET /users:', error);
-      res.status(500).json(errorResponse('Failed to retrieve users', 'FETCH_ERROR'));
-    }
+        total: users.length,
+      })
+    );
+  } catch (error) {
+    console.error('Error in GET /users:', error);
+    res.status(500).json(errorResponse('Failed to retrieve users', 'FETCH_ERROR'));
   }
-);
+});
 
 /**
  * @swagger
@@ -104,7 +102,8 @@ router.get('/',
  *       400:
  *         $ref: '#/components/responses/BadRequest'
  */
-router.get('/:id', 
+router.get(
+  '/:id',
   validateObjectId('id'),
   handleValidationErrors,
   async (req: Request, res: Response): Promise<any> => {
@@ -167,14 +166,15 @@ router.get('/:id',
  *         $ref: '#/components/responses/NotFound'
  */
 // General update endpoint for updating any field
-router.put('/:id', 
+router.put(
+  '/:id',
   validateUpdateUser,
   handleValidationErrors,
   async (req: Request, res: Response): Promise<any> => {
     try {
       const id = req.params.id;
       const userData = req.body;
-      
+
       // Prevent updating critical fields directly
       delete userData._id;
       delete userData.telegramId;
@@ -198,17 +198,17 @@ router.put('/:id',
 );
 
 // Update user acceptance status - deprecated since registration is now automatic
-router.put('/:id/acceptance', async (req: Request, res: Response):Promise<any> => {
+router.put('/:id/acceptance', async (req: Request, res: Response): Promise<any> => {
   try {
     const id = req.params.id;
-    
+
     // Since registration is automatic, just return the existing user
     const user = await UserController.getUserById(id);
-    
+
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
-    
+
     res.json(user);
   } catch (error) {
     console.error(`Error in PUT /users/${req.params.id}/acceptance:`, error);
@@ -263,22 +263,28 @@ router.put('/:id/acceptance', async (req: Request, res: Response):Promise<any> =
  *       404:
  *         $ref: '#/components/responses/NotFound'
  */
-router.post("/:userId/send-message",
+router.post(
+  '/:userId/send-message',
   validateObjectId('userId'),
   handleValidationErrors,
   async (req: Request, res: Response): Promise<any> => {
     try {
       const { userId } = req.params;
       const { message } = req.body;
-      
+
       if (!message || typeof message !== 'string' || message.trim().length === 0) {
-        return res.status(400).json(errorResponse('Message is required and cannot be empty', 'INVALID_MESSAGE'));
+        return res
+          .status(400)
+          .json(errorResponse('Message is required and cannot be empty', 'INVALID_MESSAGE'));
       }
-      
-      if (message.length > 4096) { // Telegram message limit
-        return res.status(400).json(errorResponse('Message too long (max 4096 characters)', 'MESSAGE_TOO_LONG'));
+
+      if (message.length > 4096) {
+        // Telegram message limit
+        return res
+          .status(400)
+          .json(errorResponse('Message too long (max 4096 characters)', 'MESSAGE_TOO_LONG'));
       }
-      
+
       await UserController.sendMessage(userId, message.trim());
       return res.json(successResponse({ sent: true }, undefined));
     } catch (error) {

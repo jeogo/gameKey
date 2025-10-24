@@ -1,19 +1,19 @@
-import { Context, SessionFlavor } from "grammy";
+import { Context, SessionFlavor } from 'grammy';
 
 /**
  * Session data for the bot
  */
 export interface SessionData {
   // Conversation state
-  step?: "terms" | "pending" | "approved" | "support" | "custom_payment" | "waiting_username";
-  
+  step?: 'terms' | 'pending' | 'approved' | 'support' | 'custom_payment' | 'waiting_username';
+
   // For product browsing
   currentCategoryId?: string;
   currentProductId?: string;
-  
+
   // For payment
   payCurrency?: string; // User's preferred payment currency
-  
+
   // Temporary data storage
   tempData?: {
     orderNote?: string;
@@ -30,13 +30,11 @@ export function createInitialSessionData(): SessionData {
   return {
     // Default state is undefined - will start with terms acceptance
     step: undefined,
-    
+
     // Default payment currency is USDT
-    payCurrency: "usdt",
-    
+    payCurrency: 'usdt',
+
     // Empty temporary data
-    tempData: {}
+    tempData: {},
   };
 }
-
-

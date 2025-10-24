@@ -1,7 +1,7 @@
-import { Bot } from "grammy";
-import { MyContext } from "../types/session";
-import { removeKeyboard } from "../keyboards/persistentKeyboard";
-import * as UserRepository from "../../repositories/UserRepository";
+import { Bot } from 'grammy';
+import { MyContext } from '../types/session';
+import { removeKeyboard } from '../keyboards/persistentKeyboard';
+import * as UserRepository from '../../repositories/UserRepository';
 
 /**
  * Display help information
@@ -9,19 +9,18 @@ import * as UserRepository from "../../repositories/UserRepository";
 async function helpCommand(ctx: MyContext): Promise<void> {
   try {
     if (!ctx.from) return;
-    
+
     // Check if user exists
     const user = await UserRepository.findUserByTelegramId(ctx.from.id);
-    
+
     if (!user) {
-      await ctx.reply(
-        "Welcome to GameKey! To use the bot, please use the /start command first."
-      );
+      await ctx.reply('Welcome to GameKey! To use the bot, please use the /start command first.');
       return;
     }
-    
+
     // Enhanced help message with better organization
-    const helpMessage = `GAMEKEY HELP CENTER\n\n` +
+    const helpMessage =
+      `GAMEKEY HELP CENTER\n\n` +
       `Digital gaming marketplace guide\n\n` +
       `SHOPPING COMMANDS\n` +
       `/shop - Browse our gaming catalog\n` +
@@ -46,21 +45,22 @@ async function helpCommand(ctx: MyContext): Promise<void> {
       `Response time: Under 1 hour\n` +
       `Available: 24/7\n\n` +
       `Ready to start? Type /shop now!`;
-    
+
     await ctx.reply(helpMessage, {
-      parse_mode: "Markdown",
-      reply_markup: removeKeyboard()
+      parse_mode: 'Markdown',
+      reply_markup: removeKeyboard(),
     });
-    
   } catch (error) {
-    console.error("Error in help command:", error);
-    await ctx.reply("Sorry, an error occurred while processing your request. Please try again later.");
+    console.error('Error in help command:', error);
+    await ctx.reply(
+      'Sorry, an error occurred while processing your request. Please try again later.'
+    );
   }
 }
 
 export function registerHelpCommand(bot: Bot<MyContext>): void {
-  bot.command("help", helpCommand);
-  
+  bot.command('help', helpCommand);
+
   // Also register an alias for help
-  bot.command("commands", helpCommand);
+  bot.command('commands', helpCommand);
 }

@@ -7,7 +7,7 @@ function mapProduct(product: any): IProduct | null {
   if (!product) return null;
   return {
     ...product,
-    _id: product._id?.toString()
+    _id: product._id?.toString(),
   };
 }
 
@@ -16,18 +16,18 @@ export async function findProductById(id: string): Promise<IProduct | null> {
   try {
     // Clean and validate product ID securely
     const cleanId = id.trim().split('_')[0]; // Remove quantity suffix if present
-    
+
     // Strict ObjectId validation
     if (!cleanId || !ObjectId.isValid(cleanId)) {
       return null;
     }
-    
+
     await connectToDatabase();
     const collection = getDb().collection('products');
-    
+
     const product = await collection.findOne({ _id: new ObjectId(cleanId) });
     return mapProduct(product);
-  } catch (error) {
+  } catch {
     // Silent fail for security - don't expose internal errors
     console.error('Product lookup failed');
     return null;
@@ -58,32 +58,32 @@ export async function createProduct(
   const newProduct = {
     ...productData,
     createdAt: now,
-    updatedAt: now
+    updatedAt: now,
   };
-  
+
   const result = await collection.insertOne(newProduct);
   return { ...newProduct, _id: result.insertedId.toString() };
 }
 
 // Update product by ID
 export async function updateProduct(
-  id: string, 
+  id: string,
   productData: Partial<IProduct>
 ): Promise<IProduct | null> {
   try {
     await connectToDatabase();
     const collection = getDb().collection('products');
     const objectId = new ObjectId(id);
-    
+
     const updateData = {
       ...productData,
-      updatedAt: new Date()
+      updatedAt: new Date(),
     };
-    
+
     // Prevent updating critical fields
     delete updateData._id;
     delete updateData.createdAt;
-    
+
     const result = await collection.findOneAndUpdate(
       { _id: objectId },
       { $set: updateData },
@@ -123,5 +123,3 @@ export interface Product {
   allowPreorder?: boolean;
   preorderNote?: string;
 }
-
-

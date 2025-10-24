@@ -11,10 +11,10 @@ const router = express.Router();
  *     summary: Get user notifications
  *     description: |
  *       Retrieve list of notifications for users.
- *       
+ *
  *       **Notification Types:**
  *       - `order` - Order status updates
- *       - `payment` - Payment confirmations  
+ *       - `payment` - Payment confirmations
  *       - `system` - System announcements
  *     parameters:
  *       - name: userId
@@ -83,11 +83,11 @@ router.get('/:id', async (req: Request, res: Response): Promise<any> => {
   try {
     const id = req.params.id;
     const notification = await NotificationController.getNotificationById(id);
-    
+
     if (!notification) {
       return res.status(404).json({ error: 'Notification not found' });
     }
-    
+
     res.json(notification);
   } catch (error) {
     console.error(`Error in GET /notifications/${req.params.id}:`, error);
@@ -129,22 +129,25 @@ router.get('/:id', async (req: Request, res: Response): Promise<any> => {
 router.post('/', async (req: Request, res: Response): Promise<any> => {
   try {
     const { title, message, audience, targetUserIds } = req.body;
-    
+
     if (!title || !message || !audience) {
       return res.status(400).json({ error: 'Missing required notification data' });
     }
-    
-    if (audience === 'specific_users' && (!targetUserIds || !Array.isArray(targetUserIds) || targetUserIds.length === 0)) {
+
+    if (
+      audience === 'specific_users' &&
+      (!targetUserIds || !Array.isArray(targetUserIds) || targetUserIds.length === 0)
+    ) {
       return res.status(400).json({ error: 'Target user IDs are required for specific users' });
     }
-    
+
     const newNotification = await NotificationController.createNotification({
       title,
       message,
       audience,
-      targetUserIds: audience === 'specific_users' ? targetUserIds : undefined
+      targetUserIds: audience === 'specific_users' ? targetUserIds : undefined,
     });
-    
+
     res.status(201).json(newNotification);
   } catch (error) {
     console.error('Error in POST /notifications:', error);
@@ -171,11 +174,11 @@ router.delete('/:id', async (req: Request, res: Response): Promise<any> => {
   try {
     const id = req.params.id;
     const result = await NotificationController.deleteNotification(id);
-    
+
     if (!result) {
       return res.status(404).json({ error: 'Notification not found or already deleted' });
     }
-    
+
     res.status(204).send();
   } catch (error) {
     console.error(`Error in DELETE /notifications/${req.params.id}:`, error);

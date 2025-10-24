@@ -7,22 +7,24 @@ function mapTransaction(transaction: any): IPaymentTransaction | null {
   if (!transaction) return null;
   return {
     ...transaction,
-    _id: transaction._id?.toString()
+    _id: transaction._id?.toString(),
   };
 }
 
 // Create new payment transaction
-export async function createTransaction(transactionData: Omit<IPaymentTransaction, '_id' | 'createdAt' | 'updatedAt'>): Promise<IPaymentTransaction> {
+export async function createTransaction(
+  transactionData: Omit<IPaymentTransaction, '_id' | 'createdAt' | 'updatedAt'>
+): Promise<IPaymentTransaction> {
   await connectToDatabase();
   const collection = getDb().collection('payment_transactions');
   const now = new Date();
-  
+
   const newTransaction = {
     ...transactionData,
     createdAt: now,
-    updatedAt: now
+    updatedAt: now,
   };
-  
+
   const result = await collection.insertOne(newTransaction);
   return { ...newTransaction, _id: result.insertedId.toString() };
 }
@@ -42,7 +44,9 @@ export async function findTransactionById(id: string): Promise<IPaymentTransacti
 }
 
 // Find transaction by external ID
-export async function findTransactionByExternalId(externalId: string): Promise<IPaymentTransaction | null> {
+export async function findTransactionByExternalId(
+  externalId: string
+): Promise<IPaymentTransaction | null> {
   try {
     await connectToDatabase();
     const collection = getDb().collection('payment_transactions');
@@ -55,7 +59,9 @@ export async function findTransactionByExternalId(externalId: string): Promise<I
 }
 
 // Find transaction by provider transaction ID
-export async function findTransactionByProviderId(providerTransactionId: string): Promise<IPaymentTransaction | null> {
+export async function findTransactionByProviderId(
+  providerTransactionId: string
+): Promise<IPaymentTransaction | null> {
   try {
     await connectToDatabase();
     const collection = getDb().collection('payment_transactions');
@@ -78,29 +84,27 @@ export async function updateTransactionStatus(
     const collection = getDb().collection('payment_transactions');
     const objectId = new ObjectId(id);
     const now = new Date();
-    
+
     const updateData: any = {
       status,
       updatedAt: now,
-      ...additionalData
+      ...additionalData,
     };
-    
+
     // If completing the transaction, add completedAt date
     if (status === 'completed') {
       updateData.completedAt = now;
     }
-    
+
     const result = await collection.findOneAndUpdate(
       { _id: objectId },
       { $set: updateData },
       { returnDocument: 'after' }
     );
-    
+
     // Record status change in history
-    await addPaymentStatusHistory(id, status,
-      `Status updated to ${status}.`
-    );
-    
+    await addPaymentStatusHistory(id, status, `Status updated to ${status}.`);
+
     return mapTransaction(result);
   } catch (error) {
     console.error('Error updating transaction status:', error);
@@ -110,20 +114,23 @@ export async function updateTransactionStatus(
 
 // Find all transactions with pagination
 export async function findAllTransactions(
-  filter: any = {}, 
-  skip = 0, 
+  filter: any = {},
+  skip = 0,
   limit = 20
 ): Promise<IPaymentTransaction[]> {
   try {
     await connectToDatabase();
     const collection = getDb().collection('payment_transactions');
-    const transactions = await collection.find(filter)
+    const transactions = await collection
+      .find(filter)
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
       .toArray();
-    
-    return transactions.map(t => mapTransaction(t)).filter((t): t is IPaymentTransaction => t !== null);
+
+    return transactions
+      .map(t => mapTransaction(t))
+      .filter((t): t is IPaymentTransaction => t !== null);
   } catch (error) {
     console.error('Error finding all transactions:', error);
     return [];
@@ -148,7 +155,9 @@ export async function findTransactionsByOrderId(orderId: string): Promise<IPayme
     await connectToDatabase();
     const collection = getDb().collection('payment_transactions');
     const transactions = await collection.find({ orderId }).sort({ createdAt: -1 }).toArray();
-    return transactions.map(t => mapTransaction(t)).filter((t): t is IPaymentTransaction => t !== null);
+    return transactions
+      .map(t => mapTransaction(t))
+      .filter((t): t is IPaymentTransaction => t !== null);
   } catch (error) {
     console.error('Error finding transactions by order ID:', error);
     return [];
@@ -167,12 +176,12 @@ export async function getPaymentStatistics(
   pendingPayments: number;
   pendingAmount: number;
   failedPayments: number;
-  paymentsByMethod: { [key: string]: { count: number, amount: number } };
+  paymentsByMethod: { [key: string]: { count: number; amount: number } };
 }> {
   try {
     await connectToDatabase();
     const collection = getDb().collection('payment_transactions');
-    
+
     // Build filter for date range
     const filter: any = {};
     if (startDate || endDate) {
@@ -180,10 +189,10 @@ export async function getPaymentStatistics(
       if (startDate) filter.createdAt.$gte = startDate;
       if (endDate) filter.createdAt.$lte = endDate;
     }
-    
+
     // Get all transactions within the date range
     const transactions = await collection.find(filter).toArray();
-    
+
     // Calculate statistics
     const stats = {
       totalPayments: transactions.length,
@@ -193,16 +202,16 @@ export async function getPaymentStatistics(
       pendingPayments: 0,
       pendingAmount: 0,
       failedPayments: 0,
-      paymentsByMethod: {} as { [key: string]: { count: number, amount: number } }
+      paymentsByMethod: {} as { [key: string]: { count: number; amount: number } },
     };
-    
+
     // Process transactions
     for (const tx of transactions) {
       const amount = tx.amount || 0;
-      
+
       // Add to total
       stats.totalAmount += amount;
-      
+
       // Process by status
       if (tx.status === 'completed') {
         stats.completedPayments++;
@@ -213,20 +222,20 @@ export async function getPaymentStatistics(
       } else if (tx.status === 'failed' || tx.status === 'cancelled') {
         stats.failedPayments++;
       }
-      
+
       // Process by payment method
       const method = tx.paymentProvider;
       if (!stats.paymentsByMethod[method]) {
         stats.paymentsByMethod[method] = { count: 0, amount: 0 };
       }
-      
+
       stats.paymentsByMethod[method].count++;
-      
+
       if (tx.status === 'completed') {
         stats.paymentsByMethod[method].amount += amount;
       }
     }
-    
+
     return stats;
   } catch (error) {
     console.error('Error getting payment statistics:', error);
@@ -238,17 +247,17 @@ export async function getPaymentStatistics(
       pendingPayments: 0,
       pendingAmount: 0,
       failedPayments: 0,
-      paymentsByMethod: {}
+      paymentsByMethod: {},
     };
   }
 }
 
 /**
- * Get payment status history for a transaction 
+ * Get payment status history for a transaction
  * This can be used to show payment status timeline/history
  */
 export async function addPaymentStatusHistory(
-  transactionId: string, 
+  transactionId: string,
   status: IPaymentTransaction['status'],
   note?: string
 ): Promise<void> {
@@ -256,22 +265,25 @@ export async function addPaymentStatusHistory(
     await connectToDatabase();
     const collection = getDb().collection('payment_status_history');
     const objectId = new ObjectId(transactionId);
-    
+
     await collection.insertOne({
       transactionId: objectId,
       status,
       note,
-      timestamp: new Date()
+      timestamp: new Date(),
     });
   } catch (error) {
     console.error('Error adding payment status history:', error);
   }
 }
 
-export async function createFullTransaction(txData: IPaymentTransaction): Promise<IPaymentTransaction> {
+export async function createFullTransaction(
+  txData: IPaymentTransaction
+): Promise<IPaymentTransaction> {
   await connectToDatabase();
-  const collection = getDb().collection("payment_transactions");
+  const collection = getDb().collection('payment_transactions');
   const now = new Date();
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { _id, ...txDataWithoutId } = txData;
   const newTx = {
     ...txDataWithoutId,
@@ -282,14 +294,17 @@ export async function createFullTransaction(txData: IPaymentTransaction): Promis
   return { ...newTx, _id: result.insertedId.toString() };
 }
 
-export async function updateTransaction(id: string, updates: Partial<IPaymentTransaction>): Promise<IPaymentTransaction | null> {
+export async function updateTransaction(
+  id: string,
+  updates: Partial<IPaymentTransaction>
+): Promise<IPaymentTransaction | null> {
   await connectToDatabase();
-  const collection = getDb().collection("payment_transactions");
+  const collection = getDb().collection('payment_transactions');
   // Simplified PaymentTransaction model - updatedAt removed
   const result = await collection.findOneAndUpdate(
     { _id: new ObjectId(id) },
     { $set: updates },
-    { returnDocument: "after" }
+    { returnDocument: 'after' }
   );
   return result?.value ? { ...result.value, _id: result.value._id.toString() } : null;
 }

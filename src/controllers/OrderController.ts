@@ -1,7 +1,6 @@
 import { IOrder } from '../models/Order';
 import * as OrderRepository from '../repositories/OrderRepository';
 import * as ProductRepository from '../repositories/ProductRepository';
-import { bot } from '../bot';
 
 /**
  * Get order by ID
@@ -19,10 +18,10 @@ export async function getOrderById(id: string): Promise<IOrder | null> {
  * Get orders with pagination and filtering
  */
 export async function getOrders(
-  filter: any = {}, 
-  page = 1, 
+  filter: any = {},
+  page = 1,
   limit = 20
-): Promise<{ orders: IOrder[], total: number }> {
+): Promise<{ orders: IOrder[]; total: number }> {
   try {
     return await OrderRepository.findOrders(filter, page, limit);
   } catch (error) {
@@ -38,7 +37,7 @@ export async function getUserOrders(
   userId: string,
   page = 1,
   limit = 20
-): Promise<{ orders: IOrder[], total: number }> {
+): Promise<{ orders: IOrder[]; total: number }> {
   try {
     return await OrderRepository.findOrdersByUserId(userId, page, limit);
   } catch (error) {
@@ -61,11 +60,11 @@ export async function createOrder(data: {
     if (!product) {
       throw new Error(`Product not found with ID: ${data.productId}`);
     }
-    
+
     // Create the order with current product price
     return await OrderRepository.createOrder({
       ...data,
-      unitPrice: product.price
+      unitPrice: product.price,
     });
   } catch (error) {
     console.error('Error creating order:', error);
@@ -103,7 +102,7 @@ export async function getSalesStatistics(
     // Parse date strings if provided
     const parsedStartDate = startDate ? new Date(startDate) : undefined;
     const parsedEndDate = endDate ? new Date(endDate) : undefined;
-    
+
     return await OrderRepository.getSalesStatistics(parsedStartDate, parsedEndDate);
   } catch (error) {
     console.error('Error getting sales statistics:', error);
@@ -116,7 +115,7 @@ export async function getSalesStatistics(
  */
 export async function findOrdersByStatus(
   status: IOrder['status']
-): Promise<{ orders: IOrder[], total: number }> {
+): Promise<{ orders: IOrder[]; total: number }> {
   try {
     return await OrderRepository.findOrders({ status }, 1, 100);
   } catch (error) {
@@ -130,56 +129,59 @@ export async function findOrdersByStatus(
  * Get order status display info with explanation
  */
 export function getOrderStatusInfo(order: {
-  status: string,
-  customerNote?: string,
-  type?: string
-}): { 
-  statusText: string, 
-  statusEmoji: string,
-  statusColor: string,
-  explanation: string 
+  status: string;
+  customerNote?: string;
+  type?: string;
+}): {
+  statusText: string;
+  statusEmoji: string;
+  statusColor: string;
+  explanation: string;
 } {
-  let statusEmoji = "⌛";
+  let statusEmoji = '⌛';
   let statusText = order.status;
-  let statusColor = "#f5a623"; // Default amber color for pending
-  let explanation = "";
-  
+  let statusColor = '#f5a623'; // Default amber color for pending
+  let explanation = '';
+
   switch (order.status) {
-    case "completed":
-      statusEmoji = "✅";
-      statusText = "Completed";
-      statusColor = "#4CAF50"; // Green
-      explanation = "Your order has been completed and delivered";
+    case 'completed':
+      statusEmoji = '✅';
+      statusText = 'Completed';
+      statusColor = '#4CAF50'; // Green
+      explanation = 'Your order has been completed and delivered';
       break;
-    case "cancelled":
-      statusEmoji = "❌";
-      statusText = "Cancelled";
-      statusColor = "#F44336"; // Red
-      explanation = "This order has been cancelled";
+    case 'cancelled':
+      statusEmoji = '❌';
+      statusText = 'Cancelled';
+      statusColor = '#F44336'; // Red
+      explanation = 'This order has been cancelled';
       break;
-    case "pending":
+    case 'pending':
       // Check if it's a pre-order
-      if (order.type === "preorder" || (order.customerNote && order.customerNote.toLowerCase().includes("preorder"))) {
-        statusEmoji = "⏳";
-        statusText = "Pre-ordered";
-        statusColor = "#2196F3"; // Blue
+      if (
+        order.type === 'preorder' ||
+        (order.customerNote && order.customerNote.toLowerCase().includes('preorder'))
+      ) {
+        statusEmoji = '⏳';
+        statusText = 'Pre-ordered';
+        statusColor = '#2196F3'; // Blue
         explanation = "Pre-order received. You'll be notified when the product is available";
       } else {
-        statusEmoji = "⌛";
-        statusText = "Pending";
-        explanation = "Your order is being processed";
+        statusEmoji = '⌛';
+        statusText = 'Pending';
+        explanation = 'Your order is being processed';
       }
       break;
-    case "failed":
-      statusEmoji = "❌";
-      statusText = "Failed";
-      statusColor = "#F44336"; // Red
-      explanation = "Order processing failed. Please contact support";
+    case 'failed':
+      statusEmoji = '❌';
+      statusText = 'Failed';
+      statusColor = '#F44336'; // Red
+      explanation = 'Order processing failed. Please contact support';
       break;
     default:
-      explanation = "Status unknown. Please contact support";
+      explanation = 'Status unknown. Please contact support';
   }
-  
+
   return { statusText, statusEmoji, statusColor, explanation };
 }
 
@@ -187,7 +189,7 @@ export function getOrderStatusInfo(order: {
  * Fulfill order - Deliver product content to customer (Simplified)
  */
 export async function fulfillOrder(
-  orderId: string, 
+  orderId: string,
   deliveredContent: string[]
 ): Promise<IOrder | null> {
   try {
@@ -214,7 +216,6 @@ export async function deleteOrder(id: string): Promise<boolean> {
 export async function syncOrderStatusWithPayments(): Promise<{ updated: number; errors: number }> {
   // Replace the following with actual logic
   const updated = 0; // Example: Number of orders updated
-  const errors = 0;  // Example: Number of errors encountered
+  const errors = 0; // Example: Number of errors encountered
   return { updated, errors };
 }
-

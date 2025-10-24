@@ -1,5 +1,4 @@
 import { config } from 'dotenv';
-import * as UserRepository from '../repositories/UserRepository';
 
 // Load environment variables
 config();
@@ -12,7 +11,7 @@ config();
 export function getAdminIds(): number[] {
   const adminIdsString = process.env.ADMIN_IDS || '';
   if (!adminIdsString) return [];
-  
+
   // Split by comma and convert to numbers
   return adminIdsString
     .split(',')
@@ -30,14 +29,14 @@ export function isAdmin(userId: number): boolean {
 export function getNotificationRecipients(): number[] {
   // Use main notification ID if available
   const notificationId = parseInt(process.env.NOTIFICATION_TELEGRAM_ID || '0', 10);
-  
+
   // Get all admin IDs as fallback or additional recipients
   const adminIds = getAdminIds();
-  
+
   if (notificationId && !adminIds.includes(notificationId)) {
     // Add notification ID to the list if it's not already included
     return [notificationId, ...adminIds];
   }
-  
+
   return adminIds;
 }

@@ -2,7 +2,6 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 import path from 'path';
 import fs from 'fs/promises';
-import { createWriteStream } from 'fs';
 import { performanceMonitor } from '../utils/performance';
 
 const execAsync = promisify(exec);
@@ -44,17 +43,17 @@ class DatabaseBackupService {
 
       // Create mongodump command
       const dumpCommand = this.buildMongoDumpCommand(backupPath);
-      
+
       console.log(`🔄 Starting database backup: ${backupName}`);
-      
+
       // Execute backup with performance monitoring
       await performanceMonitor.monitor('backup.database', async () => {
         const { stdout, stderr } = await execAsync(dumpCommand);
-        
+
         if (stderr && !stderr.includes('writing')) {
           console.warn('Backup warning:', stderr);
         }
-        
+
         console.log('Backup output:', stdout);
       });
 
@@ -68,7 +67,9 @@ class DatabaseBackupService {
       const stats = await fs.stat(finalBackupPath);
       const duration = Date.now() - startTime;
 
-      console.log(`✅ Backup completed: ${finalBackupPath} (${this.formatBytes(stats.size)}) in ${duration}ms`);
+      console.log(
+        `✅ Backup completed: ${finalBackupPath} (${this.formatBytes(stats.size)}) in ${duration}ms`
+      );
 
       // Clean old backups
       await this.cleanOldBackups();
@@ -77,19 +78,18 @@ class DatabaseBackupService {
         success: true,
         backupPath: finalBackupPath,
         size: stats.size,
-        duration
+        duration,
       };
-
     } catch (error) {
       const duration = Date.now() - startTime;
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      
+
       console.error('❌ Backup failed:', errorMessage);
-      
+
       return {
         success: false,
         duration,
-        error: errorMessage
+        error: errorMessage,
       };
     }
   }
@@ -114,15 +114,15 @@ class DatabaseBackupService {
 
       // Create mongorestore command
       const restoreCommand = this.buildMongoRestoreCommand(restorePath);
-      
+
       // Execute restore
       await performanceMonitor.monitor('restore.database', async () => {
         const { stdout, stderr } = await execAsync(restoreCommand);
-        
+
         if (stderr && !stderr.includes('restoring')) {
           console.warn('Restore warning:', stderr);
         }
-        
+
         console.log('Restore output:', stdout);
       });
 
@@ -131,19 +131,18 @@ class DatabaseBackupService {
 
       return {
         success: true,
-        duration
+        duration,
       };
-
     } catch (error) {
       const duration = Date.now() - startTime;
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      
+
       console.error('❌ Restore failed:', errorMessage);
-      
+
       return {
         success: false,
         duration,
-        error: errorMessage
+        error: errorMessage,
       };
     }
   }
@@ -151,12 +150,14 @@ class DatabaseBackupService {
   /**
    * List all available backups
    */
-  async listBackups(): Promise<Array<{
-    name: string;
-    path: string;
-    size: number;
-    created: Date;
-  }>> {
+  async listBackups(): Promise<
+    Array<{
+      name: string;
+      path: string;
+      size: number;
+      created: Date;
+    }>
+  > {
     try {
       const files = await fs.readdir(this.config.backupDir);
       const backups = [];
@@ -165,12 +166,12 @@ class DatabaseBackupService {
         if (file.startsWith('gamekey-backup-')) {
           const filePath = path.join(this.config.backupDir, file);
           const stats = await fs.stat(filePath);
-          
+
           backups.push({
             name: file,
             path: filePath,
             size: stats.size,
-            created: stats.birthtime
+            created: stats.birthtime,
           });
         }
       }
@@ -201,13 +202,13 @@ class DatabaseBackupService {
    */
   scheduleBackups(intervalHours = 24): NodeJS.Timeout {
     const intervalMs = intervalHours * 60 * 60 * 1000;
-    
+
     console.log(`📅 Scheduling automatic backups every ${intervalHours} hours`);
-    
+
     return setInterval(async () => {
       console.log('🕐 Starting scheduled backup...');
       const result = await this.createBackup();
-      
+
       if (result.success) {
         console.log('✅ Scheduled backup completed successfully');
       } else {
@@ -238,12 +239,12 @@ class DatabaseBackupService {
   private async compressBackup(backupPath: string): Promise<string> {
     const compressedPath = `${backupPath}.tar.gz`;
     const command = `tar -czf "${compressedPath}" -C "${path.dirname(backupPath)}" "${path.basename(backupPath)}"`;
-    
+
     await execAsync(command);
-    
+
     // Remove uncompressed directory
     await execAsync(`rm -rf "${backupPath}"`);
-    
+
     return compressedPath;
   }
 
@@ -253,9 +254,9 @@ class DatabaseBackupService {
   private async decompressBackup(compressedPath: string): Promise<string> {
     const extractPath = compressedPath.replace('.tar.gz', '');
     const command = `tar -xzf "${compressedPath}" -C "${path.dirname(compressedPath)}"`;
-    
+
     await execAsync(command);
-    
+
     return extractPath;
   }
 
@@ -265,7 +266,7 @@ class DatabaseBackupService {
   private async cleanOldBackups(): Promise<void> {
     try {
       const backups = await this.listBackups();
-      const cutoffDate = new Date(Date.now() - (this.config.retentionDays * 24 * 60 * 60 * 1000));
+      const cutoffDate = new Date(Date.now() - this.config.retentionDays * 24 * 60 * 60 * 1000);
 
       for (const backup of backups) {
         if (backup.created < cutoffDate) {
@@ -284,7 +285,7 @@ class DatabaseBackupService {
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     if (bytes === 0) return '0 Byte';
     const i = Math.floor(Math.log(bytes) / Math.log(1024));
-    return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
+    return Math.round((bytes / Math.pow(1024, i)) * 100) / 100 + ' ' + sizes[i];
   }
 
   /**
@@ -294,10 +295,10 @@ class DatabaseBackupService {
     try {
       // Check if file exists and is readable
       await fs.access(backupPath, fs.constants.R_OK);
-      
+
       // Get file stats
       const stats = await fs.stat(backupPath);
-      
+
       // Basic checks
       if (stats.size === 0) {
         console.error('Backup file is empty');
@@ -324,7 +325,7 @@ const defaultConfig: BackupConfig = {
   mongoUri: process.env.MONGODB_URI || 'mongodb://localhost:27017/gamekey',
   backupDir: process.env.BACKUP_DIR || './backups',
   retentionDays: parseInt(process.env.BACKUP_RETENTION_DAYS || '7'),
-  compressionEnabled: process.env.BACKUP_COMPRESSION !== 'false'
+  compressionEnabled: process.env.BACKUP_COMPRESSION !== 'false',
 };
 
 // Export singleton instance

@@ -39,7 +39,10 @@ export class NowPaymentsService {
     // Force reload environment variables
     require('dotenv').config();
     this.apiKey = process.env.NOWPAYMENTS_API_KEY || '';
-    console.log('🔑 API Key loaded:', this.apiKey ? 'Yes (' + this.apiKey.substring(0, 8) + '...)' : 'No');
+    console.log(
+      '🔑 API Key loaded:',
+      this.apiKey ? 'Yes (' + this.apiKey.substring(0, 8) + '...)' : 'No'
+    );
     console.log('🌍 Environment:', process.env.NODE_ENV || 'development');
     console.log('📦 Sandbox mode:', process.env.NOWPAYMENTS_SANDBOX || 'false');
     if (!this.apiKey) {
@@ -53,33 +56,35 @@ export class NowPaymentsService {
   async createPayment(options: CreatePaymentOptions): Promise<PaymentTransaction> {
     try {
       console.log(`🔄 Creating ${options.cryptoCurrency} payment for $${options.amount}`);
-      
+
       // Use production API directly (sandbox may have issues)
       const apiUrl = process.env.NOWPAYMENTS_SANDBOX === 'true' ? this.sandboxUrl : this.baseUrl;
       console.log('🌐 Using API URL:', apiUrl);
-      
+
       // Get available currencies first
       const availableCurrencies = await this.getAvailableCurrencies();
       console.log(`🎯 User requested: ${options.cryptoCurrency.toUpperCase()}`);
       console.log(`📋 Available currencies:`, availableCurrencies.slice(0, 15));
-      
+
       // Use enhanced currency selection
       const bestCurrency = getBestAvailableCurrency(options.cryptoCurrency, availableCurrencies);
-      
+
       if (!bestCurrency) {
         throw new Error(`No suitable currency available for ${options.cryptoCurrency}`);
       }
-      
+
       const selectedCurrency = bestCurrency.symbol;
       const currencyDisplay = getCurrencyDisplayInfo(selectedCurrency);
-      
+
       console.log(`✅ Selected currency: ${currencyDisplay}`);
       console.log(`⚡ Avg confirmation time: ${bestCurrency.averageConfirmationTime} min`);
-      
+
       if (selectedCurrency !== options.cryptoCurrency.toLowerCase()) {
-        console.log(`🔄 Auto-switched from ${options.cryptoCurrency.toUpperCase()} to ${selectedCurrency.toUpperCase()}`);
+        console.log(
+          `🔄 Auto-switched from ${options.cryptoCurrency.toUpperCase()} to ${selectedCurrency.toUpperCase()}`
+        );
       }
-      
+
       // Create invoice for crypto payment
       const invoiceData = {
         price_amount: options.amount,
@@ -90,21 +95,17 @@ export class NowPaymentsService {
         ipn_callback_url: `${process.env.WEBHOOK_URL || 'https://webhook.site/unique-id'}/webhook/nowpayments`,
         success_url: `https://t.me/${process.env.BOT_USERNAME || 'GameKeyBot'}?start=success_${options.orderId}`,
         cancel_url: `https://t.me/${process.env.BOT_USERNAME || 'GameKeyBot'}?start=cancel_${options.orderId}`,
-        is_fee_paid_by_user: false
+        is_fee_paid_by_user: false,
       };
 
       console.log('📝 Invoice data:', invoiceData);
 
-      const response = await axios.post(
-        `${apiUrl}/invoice`,
-        invoiceData,
-        {
-          headers: {
-            'x-api-key': this.apiKey,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
+      const response = await axios.post(`${apiUrl}/invoice`, invoiceData, {
+        headers: {
+          'x-api-key': this.apiKey,
+          'Content-Type': 'application/json',
+        },
+      });
 
       const invoice = response.data;
       console.log('✅ Invoice created:', invoice);
@@ -125,44 +126,44 @@ export class NowPaymentsService {
           userId: options.userId,
           productName: options.productName,
           cryptoCurrency: options.cryptoCurrency,
-          invoiceId: invoice.id
+          invoiceId: invoice.id,
         },
         createdAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
       };
-
     } catch (error: any) {
       console.error('❌ Error creating NOWPayments invoice:', error);
       console.error('📊 Response data:', error.response?.data);
-      
+
       // If currency is unavailable, try with USDT first, then BTC as fallback
-      if (error.response?.data?.code === 'INVALID_REQUEST_PARAMS' && 
-          error.response?.data?.message?.includes('unavailable')) {
-        
+      if (
+        error.response?.data?.code === 'INVALID_REQUEST_PARAMS' &&
+        error.response?.data?.message?.includes('unavailable')
+      ) {
         // If user didn't choose USDT, try USDT ERC20 first
         if (!options.cryptoCurrency.toLowerCase().includes('usdt')) {
           console.log('🔄 Currency unavailable, trying with USDT ERC20...');
           const usdtOptions = { ...options, cryptoCurrency: 'USDT' as any }; // This will be converted to usdterc20
           try {
             return await this.createPayment(usdtOptions);
-          } catch (usdtError) {
+          } catch {
             console.log('🔄 USDT also unavailable, trying with BTC...');
           }
         }
-        
+
         console.log('🔄 Trying with BTC as final fallback...');
         const btcOptions = { ...options, cryptoCurrency: 'BTC' as any };
         try {
           return await this.createPayment(btcOptions);
-        } catch (btcError) {
+        } catch {
           console.error('❌ BTC payment also failed, using alternative link');
         }
       }
-      
+
       // Create alternative payment using direct NOWPayments link
       console.log('🔄 Creating alternative payment link...');
       const alternativeUrl = this.createAlternativePayment(options);
-      
+
       return {
         amount: options.amount,
         currency: options.currency,
@@ -175,10 +176,10 @@ export class NowPaymentsService {
           userId: options.userId,
           productName: options.productName,
           cryptoCurrency: options.cryptoCurrency,
-          isAlternative: true
+          isAlternative: true,
         },
         createdAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
       };
 
       throw new Error(`Failed to create payment: ${error.message}`);
@@ -193,14 +194,17 @@ export class NowPaymentsService {
       const apiUrl = process.env.NOWPAYMENTS_SANDBOX === 'true' ? this.sandboxUrl : this.baseUrl;
       const response = await axios.get(`${apiUrl}/currencies`, {
         headers: {
-          'x-api-key': this.apiKey
+          'x-api-key': this.apiKey,
         },
-        timeout: 10000
+        timeout: 10000,
       });
-      
-      console.log('💰 Available currencies:', response.data.currencies?.slice(0, 10) || 'Failed to fetch');
+
+      console.log(
+        '💰 Available currencies:',
+        response.data.currencies?.slice(0, 10) || 'Failed to fetch'
+      );
       return response.data.currencies || ['usdterc20', 'usdttrc20', 'btc', 'eth', 'ltc']; // Fallback with real USDT variants
-    } catch (error) {
+    } catch {
       console.warn('⚠️ Failed to fetch available currencies, using defaults');
       return ['usdterc20', 'usdttrc20', 'btc', 'eth', 'ltc']; // Safe fallback with real USDT variants
     }
@@ -211,21 +215,19 @@ export class NowPaymentsService {
    */
   private createAlternativePayment(options: CreatePaymentOptions): string {
     console.log('🔗 Creating direct payment link for', options.cryptoCurrency);
-    
+
     // Determine best currency to use (prefer user's choice, prioritize USDT)
     const userChoice = options.cryptoCurrency.toLowerCase();
     let selectedCurrency = userChoice;
-    
+
     // Always prefer USDT if user selected it, or if their choice isn't reliable
     if (userChoice === 'usdt') {
       selectedCurrency = 'usdterc20'; // Use proper USDT ERC20 variant
     } else {
       const reliableCurrencies = ['usdterc20', 'usdttrc20', 'btc', 'eth', 'ltc'];
-      selectedCurrency = reliableCurrencies.includes(userChoice) 
-        ? userChoice 
-        : 'usdterc20'; // Default to USDT ERC20 instead of BTC
+      selectedCurrency = reliableCurrencies.includes(userChoice) ? userChoice : 'usdterc20'; // Default to USDT ERC20 instead of BTC
     }
-    
+
     // Create a comprehensive payment URL with user's preferred currency
     const baseParams = new URLSearchParams({
       amount: options.amount.toString(),
@@ -238,13 +240,18 @@ export class NowPaymentsService {
       // Add more parameters for better user experience
       customer_email: '',
       is_fixed_rate: 'false',
-      is_fee_paid_by_user: 'false'
+      is_fee_paid_by_user: 'false',
     });
-    
+
     // Use NOWPayments public widget with user's chosen currency
     const directUrl = `https://nowpayments.io/payment/?${baseParams.toString()}`;
-    console.log('🌐 Direct payment URL created with', selectedCurrency.toUpperCase(), ':', directUrl);
-    
+    console.log(
+      '🌐 Direct payment URL created with',
+      selectedCurrency.toUpperCase(),
+      ':',
+      directUrl
+    );
+
     return directUrl;
   }
 
@@ -256,14 +263,11 @@ export class NowPaymentsService {
       const isSandbox = process.env.NODE_ENV !== 'production';
       const apiUrl = isSandbox ? this.sandboxUrl : this.baseUrl;
 
-      const response = await axios.get(
-        `${apiUrl}/payment/${externalId}`,
-        {
-          headers: {
-            'x-api-key': this.apiKey
-          }
-        }
-      );
+      const response = await axios.get(`${apiUrl}/payment/${externalId}`, {
+        headers: {
+          'x-api-key': this.apiKey,
+        },
+      });
 
       const payment = response.data;
       console.log('📊 Payment status check:', payment);
@@ -288,20 +292,20 @@ export class NowPaymentsService {
       }
     } catch (error) {
       console.error('❌ Error checking payment status:', error);
-      
+
       // In development mode, simulate payment completion after a delay
       if (process.env.NODE_ENV === 'development' && externalId.startsWith('mock-')) {
         const mockCreatedTime = parseInt(externalId.replace('mock-', ''));
         const now = Date.now();
         const elapsed = now - mockCreatedTime;
-        
+
         // Simulate payment completion after 1 minute in development
         if (elapsed > 60000) {
           console.log('🧪 Mock payment completed (development mode)');
           return 'completed';
         }
       }
-      
+
       return 'pending';
     }
   }
@@ -345,9 +349,8 @@ export class NowPaymentsService {
 
       return {
         status,
-        externalId: webhookData.payment_id
+        externalId: webhookData.payment_id,
       };
-
     } catch (error) {
       console.error('❌ Error processing webhook:', error);
       return null;

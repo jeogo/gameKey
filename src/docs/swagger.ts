@@ -48,22 +48,22 @@ const swaggerOptions = {
       `,
       contact: {
         name: 'GameKey Store API',
-        email: 'support@gamekey.store'
+        email: 'support@gamekey.store',
       },
       license: {
         name: 'MIT',
-        url: 'https://opensource.org/licenses/MIT'
-      }
+        url: 'https://opensource.org/licenses/MIT',
+      },
     },
     servers: [
       {
         url: process.env.API_BASE_URL || 'http://localhost:3001/api',
-        description: 'Production Server'
+        description: 'Production Server',
       },
       {
-        url: 'http://localhost:3001/api', 
-        description: 'Development Server'
-      }
+        url: 'http://localhost:3001/api',
+        description: 'Development Server',
+      },
     ],
     components: {
       schemas: {
@@ -74,326 +74,326 @@ const swaggerOptions = {
             _id: {
               type: 'string',
               description: 'MongoDB Object ID',
-              example: '507f1f77bcf86cd799439011'
+              example: '507f1f77bcf86cd799439011',
             },
             telegramId: {
               type: 'number',
               description: 'Telegram user ID',
-              example: 123456789
+              example: 123456789,
             },
             username: {
               type: 'string',
               description: 'Optional Telegram username',
-              example: 'gameuser123'
+              example: 'gameuser123',
             },
             firstName: {
-              type: 'string', 
+              type: 'string',
               description: 'User first name',
-              example: 'John'
+              example: 'John',
             },
             createdAt: {
               type: 'string',
               format: 'date-time',
               description: 'Account status',
-              example: true
+              example: true,
             },
           },
-          required: ['telegramId', 'createdAt']
+          required: ['telegramId', 'createdAt'],
         },
-        
+
         // Product Models
         Product: {
           type: 'object',
           properties: {
             _id: {
               type: 'string',
-              description: 'MongoDB Object ID'
+              description: 'MongoDB Object ID',
             },
             name: {
               type: 'string',
               description: 'Product name',
-              example: 'Steam Gift Card $50'
+              example: 'Steam Gift Card $50',
             },
             description: {
               type: 'string',
               description: 'Product description',
-              example: 'Digital Steam gift card valid worldwide'
+              example: 'Digital Steam gift card valid worldwide',
             },
             price: {
               type: 'number',
               description: 'Product price in USD',
-              example: 47.99
+              example: 47.99,
             },
             categoryId: {
-              type: 'string', 
+              type: 'string',
               description: 'Category ID reference',
-              example: '507f1f77bcf86cd799439013'
+              example: '507f1f77bcf86cd799439013',
             },
             isAvailable: {
               type: 'boolean',
               description: 'Product availability status',
-              example: true
+              example: true,
             },
             digitalContent: {
               type: 'array',
               items: { type: 'string' },
               description: 'Digital content (keys, emails, accounts)',
-              example: ['email1@example.com:password1', 'STEAM-XXXX-YYYY-ZZZZ']
+              example: ['email1@example.com:password1', 'STEAM-XXXX-YYYY-ZZZZ'],
             },
             createdAt: {
               type: 'string',
               format: 'date-time',
-              description: 'Creation timestamp'
-            }
+              description: 'Creation timestamp',
+            },
           },
-          required: ['name', 'price', 'categoryId', 'isAvailable', 'digitalContent']
+          required: ['name', 'price', 'categoryId', 'isAvailable', 'digitalContent'],
         },
-        
+
         // Order Models
         Order: {
           type: 'object',
           properties: {
             _id: {
               type: 'string',
-              description: 'MongoDB Object ID'
+              description: 'MongoDB Object ID',
             },
             userId: {
               type: 'string',
               description: 'Customer user ID',
-              example: '507f1f77bcf86cd799439011'
+              example: '507f1f77bcf86cd799439011',
             },
             productId: {
               type: 'string',
               description: 'Ordered product ID',
-              example: '507f1f77bcf86cd799439013'
+              example: '507f1f77bcf86cd799439013',
             },
             quantity: {
               type: 'number',
               description: 'Order quantity',
-              example: 2
+              example: 2,
             },
             totalAmount: {
               type: 'number',
               description: 'Total order amount',
-              example: 95.98
+              example: 95.98,
             },
             unitPrice: {
               type: 'number',
               description: 'Unit price at purchase time',
-              example: 47.99
+              example: 47.99,
             },
             status: {
               type: 'string',
               enum: ['pending', 'paid', 'delivered', 'cancelled'],
-              description: 'Order status'
+              description: 'Order status',
             },
             deliveredContent: {
               type: 'array',
               items: { type: 'string' },
-              description: 'Delivered digital content'
+              description: 'Delivered digital content',
             },
             createdAt: {
               type: 'string',
-              format: 'date-time'
+              format: 'date-time',
             },
             updatedAt: {
               type: 'string',
-              format: 'date-time'
-            }
+              format: 'date-time',
+            },
           },
-          required: ['userId', 'productId', 'quantity', 'totalAmount', 'status']
+          required: ['userId', 'productId', 'quantity', 'totalAmount', 'status'],
         },
-        
-        // Payment Models  
+
+        // Payment Models
         PaymentTransaction: {
           type: 'object',
           properties: {
             _id: {
               type: 'string',
-              description: 'MongoDB Object ID'
+              description: 'MongoDB Object ID',
             },
             orderId: {
               type: 'string',
               description: 'Associated order ID',
-              example: '507f1f77bcf86cd799439015'
+              example: '507f1f77bcf86cd799439015',
             },
             userId: {
               type: 'string',
               description: 'Customer user ID',
-              example: '507f1f77bcf86cd799439011'
+              example: '507f1f77bcf86cd799439011',
             },
             amount: {
               type: 'number',
               description: 'Transaction amount in USD',
-              example: 47.99
+              example: 47.99,
             },
             currency: {
               type: 'string',
               description: 'Payment currency',
-              example: 'usd'
+              example: 'usd',
             },
             cryptoType: {
               type: 'string',
               description: 'Cryptocurrency used',
-              example: 'usdterc20'
+              example: 'usdterc20',
             },
             cryptoNetwork: {
               type: 'string',
               description: 'Blockchain network',
-              example: 'Ethereum'
+              example: 'Ethereum',
             },
             status: {
               type: 'string',
               enum: ['pending', 'completed', 'failed', 'cancelled', 'refunded'],
-              description: 'Payment status'
+              description: 'Payment status',
             },
             paymentProvider: {
               type: 'string',
               description: 'Payment processor',
-              example: 'nowpayments'
+              example: 'nowpayments',
             },
             providerTransactionId: {
               type: 'string',
-              description: 'Provider transaction ID'
+              description: 'Provider transaction ID',
             },
             paymentUrl: {
               type: 'string',
-              description: 'Payment page URL'
+              description: 'Payment page URL',
             },
             cryptoAddress: {
               type: 'string',
-              description: 'Crypto wallet address for payment'
+              description: 'Crypto wallet address for payment',
             },
             cryptoTxHash: {
               type: 'string',
-              description: 'Blockchain transaction hash'
+              description: 'Blockchain transaction hash',
             },
             createdAt: {
               type: 'string',
-              format: 'date-time'
+              format: 'date-time',
             },
             completedAt: {
               type: 'string',
-              format: 'date-time'
-            }
+              format: 'date-time',
+            },
           },
-          required: ['orderId', 'userId', 'amount', 'currency', 'status', 'paymentProvider']
+          required: ['orderId', 'userId', 'amount', 'currency', 'status', 'paymentProvider'],
         },
-        
+
         // Category Models
         Category: {
           type: 'object',
           properties: {
             _id: {
               type: 'string',
-              description: 'MongoDB Object ID'
+              description: 'MongoDB Object ID',
             },
             name: {
               type: 'string',
               description: 'Category name',
-              example: 'Gaming Gift Cards'
+              example: 'Gaming Gift Cards',
             },
             description: {
               type: 'string',
               description: 'Category description',
-              example: 'Digital gift cards for popular gaming platforms'
+              example: 'Digital gift cards for popular gaming platforms',
             },
             isActive: {
               type: 'boolean',
               description: 'Category status',
-              example: true
+              example: true,
             },
             sortOrder: {
               type: 'number',
               description: 'Display sort order',
-              example: 1
+              example: 1,
             },
             createdAt: {
               type: 'string',
-              format: 'date-time'
-            }
+              format: 'date-time',
+            },
           },
-          required: ['name', 'isActive', 'sortOrder']
+          required: ['name', 'isActive', 'sortOrder'],
         },
-        
+
         // Notification Models
         Notification: {
           type: 'object',
           properties: {
             _id: {
               type: 'string',
-              description: 'MongoDB Object ID'
+              description: 'MongoDB Object ID',
             },
             userId: {
               type: 'string',
               description: 'Target user ID',
-              example: '507f1f77bcf86cd799439011'
+              example: '507f1f77bcf86cd799439011',
             },
             type: {
               type: 'string',
               enum: ['order', 'payment', 'system', 'promo'],
-              description: 'Notification type'
+              description: 'Notification type',
             },
             title: {
               type: 'string',
               description: 'Notification title',
-              example: 'Payment Confirmed'
+              example: 'Payment Confirmed',
             },
             message: {
               type: 'string',
               description: 'Notification content',
-              example: 'Your payment has been confirmed and order is being processed'
+              example: 'Your payment has been confirmed and order is being processed',
             },
             isRead: {
               type: 'boolean',
               description: 'Read status',
-              example: false
+              example: false,
             },
             data: {
               type: 'object',
-              description: 'Additional notification data'
+              description: 'Additional notification data',
             },
             createdAt: {
               type: 'string',
-              format: 'date-time'
-            }
+              format: 'date-time',
+            },
           },
-          required: ['userId', 'type', 'title', 'message', 'isRead']
+          required: ['userId', 'type', 'title', 'message', 'isRead'],
         },
-        
+
         // Response Models
         ApiResponse: {
           type: 'object',
           properties: {
             success: {
               type: 'boolean',
-              description: 'Request success status'
+              description: 'Request success status',
             },
             message: {
-              type: 'string',  
-              description: 'Response message'
+              type: 'string',
+              description: 'Response message',
             },
             data: {
               type: 'object',
-              description: 'Response data'
+              description: 'Response data',
             },
             error: {
               type: 'string',
-              description: 'Error message if failed'
-            }
+              description: 'Error message if failed',
+            },
           },
-          required: ['success']
+          required: ['success'],
         },
-        
+
         PaginatedResponse: {
           type: 'object',
           properties: {
             success: {
-              type: 'boolean'
+              type: 'boolean',
             },
             data: {
               type: 'array',
-              items: {}
+              items: {},
             },
             pagination: {
               type: 'object',
@@ -401,23 +401,23 @@ const swaggerOptions = {
                 currentPage: { type: 'number' },
                 totalPages: { type: 'number' },
                 totalItems: { type: 'number' },
-                itemsPerPage: { type: 'number' }
-              }
-            }
-          }
+                itemsPerPage: { type: 'number' },
+              },
+            },
+          },
         },
-        
+
         // Error Models
         ValidationError: {
           type: 'object',
           properties: {
             success: {
               type: 'boolean',
-              example: false
+              example: false,
             },
             message: {
               type: 'string',
-              example: 'Validation failed'
+              example: 'Validation failed',
             },
             errors: {
               type: 'array',
@@ -425,14 +425,14 @@ const swaggerOptions = {
                 type: 'object',
                 properties: {
                   field: { type: 'string' },
-                  message: { type: 'string' }
-                }
-              }
-            }
-          }
-        }
+                  message: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
       },
-      
+
       parameters: {
         PageParam: {
           name: 'page',
@@ -441,19 +441,19 @@ const swaggerOptions = {
           schema: {
             type: 'integer',
             minimum: 1,
-            default: 1
-          }
+            default: 1,
+          },
         },
         LimitParam: {
-          name: 'limit', 
+          name: 'limit',
           in: 'query',
           description: 'Items per page',
           schema: {
             type: 'integer',
             minimum: 1,
             maximum: 100,
-            default: 20
-          }
+            default: 20,
+          },
         },
         ObjectIdParam: {
           name: 'id',
@@ -462,19 +462,19 @@ const swaggerOptions = {
           description: 'MongoDB Object ID',
           schema: {
             type: 'string',
-            pattern: '^[0-9a-fA-F]{24}$'
-          }
-        }
+            pattern: '^[0-9a-fA-F]{24}$',
+          },
+        },
       },
-      
+
       responses: {
         BadRequest: {
           description: 'Bad Request - Invalid input parameters',
           content: {
             'application/json': {
-              schema: { $ref: '#/components/schemas/ValidationError' }
-            }
-          }
+              schema: { $ref: '#/components/schemas/ValidationError' },
+            },
+          },
         },
         NotFound: {
           description: 'Resource not found',
@@ -485,11 +485,11 @@ const swaggerOptions = {
                 properties: {
                   success: { type: 'boolean', example: false },
                   message: { type: 'string', example: 'Resource not found' },
-                  code: { type: 'string', example: 'NOT_FOUND' }
-                }
-              }
-            }
-          }
+                  code: { type: 'string', example: 'NOT_FOUND' },
+                },
+              },
+            },
+          },
         },
         InternalError: {
           description: 'Internal Server Error',
@@ -500,51 +500,47 @@ const swaggerOptions = {
                 properties: {
                   success: { type: 'boolean', example: false },
                   message: { type: 'string', example: 'Internal server error' },
-                  code: { type: 'string', example: 'INTERNAL_ERROR' }
-                }
-              }
-            }
-          }
-        }
-      }
+                  code: { type: 'string', example: 'INTERNAL_ERROR' },
+                },
+              },
+            },
+          },
+        },
+      },
     },
-    
+
     tags: [
       {
         name: 'Users',
-        description: '👤 User management and profile operations'
+        description: '👤 User management and profile operations',
       },
       {
-        name: 'Products', 
-        description: '🎮 Digital product catalog management'
+        name: 'Products',
+        description: '🎮 Digital product catalog management',
       },
       {
         name: 'Orders',
-        description: '🛒 Order processing and management'
+        description: '🛒 Order processing and management',
       },
       {
         name: 'Payments',
-        description: '💳 Payment processing and cryptocurrency transactions'
+        description: '💳 Payment processing and cryptocurrency transactions',
       },
       {
         name: 'Categories',
-        description: '🏷️ Product category management'
+        description: '🏷️ Product category management',
       },
       {
         name: 'Notifications',
-        description: '🔔 User notification system'
+        description: '🔔 User notification system',
       },
       {
         name: 'Analytics',
-        description: '📊 System analytics and reporting'
-      }
-    ]
+        description: '📊 System analytics and reporting',
+      },
+    ],
   },
-  apis: [
-    './src/routes/*.ts',
-    './src/controllers/*.ts', 
-    './src/models/*.ts'
-  ]
+  apis: ['./src/routes/*.ts', './src/controllers/*.ts', './src/models/*.ts'],
 };
 
 export const swaggerSpec = swaggerJsdoc(swaggerOptions);

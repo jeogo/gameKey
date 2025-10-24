@@ -1,20 +1,20 @@
-import { Bot } from "grammy";
-import { config } from "dotenv";
-import { MyContext } from "./bot/types/session";
-import { registerCallbackHandlers } from "./bot/handlers/callbackHandlers";
-import { registerAdminHandlers } from "./bot/handlers/adminHandlers";
-import { registerMessageHandlers } from "./bot/handlers/messageHandlers";
-import { registerCommands } from "./bot/commands";
-import { sessionMiddleware } from "./bot/middleware/session";
-import { errorHandler } from "./bot/middleware/errorHandler";
-import { authMiddleware } from "./bot/middleware/auth";
+import { Bot } from 'grammy';
+import { config } from 'dotenv';
+import { MyContext } from './bot/types/session';
+import { registerCallbackHandlers } from './bot/handlers/callbackHandlers';
+import { registerAdminHandlers } from './bot/handlers/adminHandlers';
+import { registerMessageHandlers } from './bot/handlers/messageHandlers';
+import { registerCommands } from './bot/commands';
+import { sessionMiddleware } from './bot/middleware/session';
+import { errorHandler } from './bot/middleware/errorHandler';
+import { authMiddleware } from './bot/middleware/auth';
 // Load environment variables
 config();
 
 // Get API token from environment variables with validation
 const apiToken = process.env.API_TOKEN;
 if (!apiToken) {
-  throw new Error("API_TOKEN is not defined in environment variables");
+  throw new Error('API_TOKEN is not defined in environment variables');
 }
 
 // Create bot with API token
@@ -34,13 +34,13 @@ registerMessageHandlers(bot); // Register this last to avoid conflicts
 // Start bot function to be called from index.ts
 export async function startBot(): Promise<void> {
   try {
-    console.log("🤖 Bot is starting...");
+    console.log('🤖 Bot is starting...');
     await bot.start({
-      onStart: () => console.log("🤖 Bot is now active and listening for events"),
+      onStart: () => console.log('🤖 Bot is now active and listening for events'),
       drop_pending_updates: true,
     });
   } catch (error) {
-    console.error("❌ Failed to start bot:", error);
+    console.error('❌ Failed to start bot:', error);
     throw error;
   }
 }
@@ -49,9 +49,9 @@ export async function startBot(): Promise<void> {
 export async function stopBot(): Promise<void> {
   try {
     await bot.stop();
-    console.log("🤖 Bot stopped");
+    console.log('🤖 Bot stopped');
   } catch (error) {
-    console.error("❌ Error stopping bot:", error);
+    console.error('❌ Error stopping bot:', error);
     throw error;
   }
 }

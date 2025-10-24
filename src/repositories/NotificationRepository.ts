@@ -7,7 +7,7 @@ function mapNotification(notification: any): INotification | null {
   if (!notification) return null;
   return {
     ...notification,
-    _id: notification._id?.toString()
+    _id: notification._id?.toString(),
   };
 }
 
@@ -28,18 +28,22 @@ export async function findAllNotifications(): Promise<INotification[]> {
   await connectToDatabase();
   const collection = getDb().collection('notifications');
   const notifications = await collection.find().toArray();
-  return notifications.map(notification => mapNotification(notification)).filter((n): n is INotification => n !== null);
+  return notifications
+    .map(notification => mapNotification(notification))
+    .filter((n): n is INotification => n !== null);
 }
 
-export async function createNotification(notificationData: Omit<INotification, '_id' | 'createdAt'>): Promise<INotification> {
+export async function createNotification(
+  notificationData: Omit<INotification, '_id' | 'createdAt'>
+): Promise<INotification> {
   await connectToDatabase();
   const collection = getDb().collection('notifications');
-  
+
   const newNotification = {
     ...notificationData,
-    createdAt: new Date()
+    createdAt: new Date(),
   };
-  
+
   const result = await collection.insertOne(newNotification);
   return { ...newNotification, _id: result.insertedId.toString() };
 }

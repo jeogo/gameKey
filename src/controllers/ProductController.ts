@@ -48,7 +48,7 @@ export async function createProduct(data: {
  * Update product
  */
 export async function updateProduct(
-  id: string, 
+  id: string,
   productData: Partial<IProduct>
 ): Promise<IProduct | null> {
   try {

@@ -1,5 +1,5 @@
-import express, { Request, Response } from "express";
-import * as OrderController from "../controllers/OrderController";
+import express, { Request, Response } from 'express';
+import * as OrderController from '../controllers/OrderController';
 
 const router = express.Router();
 
@@ -11,7 +11,7 @@ const router = express.Router();
  *     summary: Get all orders with filtering
  *     description: |
  *       Retrieve paginated list of orders with optional filtering.
- *       
+ *
  *       **Order Statuses:**
  *       - `pending` - Order created, awaiting payment
  *       - `paid` - Payment confirmed, processing order
@@ -63,7 +63,7 @@ const router = express.Router();
  *                   deliveredContent: ["STEAM-KEY-ABC123"]
  *                   createdAt: "2025-10-01T10:00:00Z"
  */
-router.get("/", async (req: Request, res: Response) => {
+router.get('/', async (req: Request, res: Response) => {
   try {
     const page = req.query.page ? parseInt(req.query.page as string) : 1;
     const limit = req.query.limit ? parseInt(req.query.limit as string) : 20;
@@ -77,8 +77,8 @@ router.get("/", async (req: Request, res: Response) => {
 
     res.json(result);
   } catch (error) {
-    console.error("Error in GET /orders:", error);
-    res.status(500).json({ error: "Failed to retrieve orders" });
+    console.error('Error in GET /orders:', error);
+    res.status(500).json({ error: 'Failed to retrieve orders' });
   }
 });
 
@@ -109,7 +109,7 @@ router.get("/", async (req: Request, res: Response) => {
  *         description: Orders retrieved
  */
 // Get orders for a specific user
-router.get("/user/:userId", async (req: Request, res: Response) => {
+router.get('/user/:userId', async (req: Request, res: Response) => {
   try {
     const userId = req.params.userId;
     const page = req.query.page ? parseInt(req.query.page as string) : 1;
@@ -119,7 +119,7 @@ router.get("/user/:userId", async (req: Request, res: Response) => {
     res.json(result);
   } catch (error) {
     console.error(`Error in GET /orders/user/${req.params.userId}:`, error);
-    res.status(500).json({ error: "Failed to retrieve user orders" });
+    res.status(500).json({ error: 'Failed to retrieve user orders' });
   }
 });
 
@@ -138,18 +138,18 @@ router.get("/user/:userId", async (req: Request, res: Response) => {
  *         $ref: '#/components/responses/NotFound'
  */
 // Get order by ID
-router.get("/:id", async (req: Request, res: Response): Promise<any> => {
+router.get('/:id', async (req: Request, res: Response): Promise<any> => {
   try {
     const order = await OrderController.getOrderById(req.params.id);
 
     if (!order) {
-      return res.status(404).json({ error: "Order not found" });
+      return res.status(404).json({ error: 'Order not found' });
     }
 
     res.json(order);
   } catch (error) {
     console.error(`Error in GET /orders/${req.params.id}:`, error);
-    res.status(500).json({ error: "Failed to retrieve order" });
+    res.status(500).json({ error: 'Failed to retrieve order' });
   }
 });
 
@@ -181,24 +181,24 @@ router.get("/:id", async (req: Request, res: Response): Promise<any> => {
  *         $ref: '#/components/responses/BadRequest'
  */
 // Create a new order
-router.post("/", async (req: Request, res: Response): Promise<any> => {
+router.post('/', async (req: Request, res: Response): Promise<any> => {
   try {
-    const { userId, productId, quantity, type, customerNote } = req.body;
+    const { userId, productId, quantity } = req.body;
 
     if (!userId || !productId || !quantity) {
-      return res.status(400).json({ error: "Missing required order data" });
+      return res.status(400).json({ error: 'Missing required order data' });
     }
 
     const newOrder = await OrderController.createOrder({
       userId,
       productId,
-      quantity: parseInt(quantity)
+      quantity: parseInt(quantity),
     });
 
     res.status(201).json(newOrder);
   } catch (error) {
-    console.error("Error in POST /orders:", error);
-    res.status(500).json({ error: "Failed to create order" });
+    console.error('Error in POST /orders:', error);
+    res.status(500).json({ error: 'Failed to create order' });
   }
 });
 
@@ -232,33 +232,27 @@ router.post("/", async (req: Request, res: Response): Promise<any> => {
  *         $ref: '#/components/responses/NotFound'
  */
 // Update order status
-router.patch(
-  "/:id/status",
-  async (req: Request, res: Response): Promise<any> => {
-    try {
-      const id = req.params.id;
-      const { status, note } = req.body;
+router.patch('/:id/status', async (req: Request, res: Response): Promise<any> => {
+  try {
+    const id = req.params.id;
+    const { status } = req.body;
 
-      if (!status) {
-        return res.status(400).json({ error: "Status is required" });
-      }
-
-      const updatedOrder = await OrderController.updateOrderStatus(
-        id,
-        status
-      );
-
-      if (!updatedOrder) {
-        return res.status(404).json({ error: "Order not found" });
-      }
-
-      res.json(updatedOrder);
-    } catch (error) {
-      console.error(`Error in PATCH /orders/${req.params.id}/status:`, error);
-      res.status(500).json({ error: "Failed to update order status" });
+    if (!status) {
+      return res.status(400).json({ error: 'Status is required' });
     }
+
+    const updatedOrder = await OrderController.updateOrderStatus(id, status);
+
+    if (!updatedOrder) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+
+    res.json(updatedOrder);
+  } catch (error) {
+    console.error(`Error in PATCH /orders/${req.params.id}/status:`, error);
+    res.status(500).json({ error: 'Failed to update order status' });
   }
-);
+});
 
 /**
  * @swagger
@@ -283,25 +277,25 @@ router.patch(
  *       200:
  *         description: Order status updated
  */
-router.put("/:id/status", async (req: Request, res: Response) :Promise<any>=> {
+router.put('/:id/status', async (req: Request, res: Response): Promise<any> => {
   try {
     const id = req.params.id;
-    const { status, note } = req.body;
+    const { status } = req.body;
 
     if (!status) {
-      return res.status(400).json({ error: "Status is required" });
+      return res.status(400).json({ error: 'Status is required' });
     }
 
     const updatedOrder = await OrderController.updateOrderStatus(id, status);
 
     if (!updatedOrder) {
-      return res.status(404).json({ error: "Order not found" });
+      return res.status(404).json({ error: 'Order not found' });
     }
 
     res.json(updatedOrder);
   } catch (error) {
     console.error(`Error in PUT /orders/${req.params.id}/status:`, error);
-    res.status(500).json({ error: "Failed to update order status" });
+    res.status(500).json({ error: 'Failed to update order status' });
   }
 });
 
@@ -337,37 +331,37 @@ router.put("/:id/status", async (req: Request, res: Response) :Promise<any>=> {
  *         $ref: '#/components/responses/NotFound'
  */
 // Fulfill order with digital content
-router.post("/:id/fulfill", async (req: Request, res: Response) :Promise<any>=> {
+router.post('/:id/fulfill', async (req: Request, res: Response): Promise<any> => {
   try {
     const orderId = req.params.id;
-    
+
     // Accept both 'content' and 'digitalContent' field names
     const content = req.body.content || req.body.digitalContent;
-    const { note } = req.body;
-    
+
     // Log the received request body for debugging
-    console.log("Fulfillment request received:", JSON.stringify(req.body));
+    console.log('Fulfillment request received:', JSON.stringify(req.body));
 
     // More detailed validation with helpful error message
     if (!content) {
-      console.error("Fulfillment request missing content field:", req.body);
-      return res.status(400).json({ 
-        error: "Missing digital content", 
-        details: "Either 'content' or 'digitalContent' field is required in the request body. It should contain the digital items to deliver to the customer."
+      console.error('Fulfillment request missing content field:', req.body);
+      return res.status(400).json({
+        error: 'Missing digital content',
+        details:
+          "Either 'content' or 'digitalContent' field is required in the request body. It should contain the digital items to deliver to the customer.",
       });
     }
 
     const fulfilledOrder = await OrderController.fulfillOrder(orderId, content);
     if (!fulfilledOrder) {
-      return res.status(404).json({ error: "Order not found" });
+      return res.status(404).json({ error: 'Order not found' });
     }
 
     res.json(fulfilledOrder);
   } catch (error) {
     console.error(`Error in POST /orders/${req.params.id}/fulfill:`, error);
-    res.status(500).json({ 
-      error: "Failed to fulfill order", 
-      message: error instanceof Error ? error.message : "Unknown error" 
+    res.status(500).json({
+      error: 'Failed to fulfill order',
+      message: error instanceof Error ? error.message : 'Unknown error',
     });
   }
 });
@@ -384,18 +378,18 @@ router.post("/:id/fulfill", async (req: Request, res: Response) :Promise<any>=> 
  *         description: Sync summary returned
  */
 // Sync order statuses with payments (admin function)
-router.post("/sync-statuses", async (req: Request, res: Response) => {
+router.post('/sync-statuses', async (req: Request, res: Response) => {
   try {
     // Check for admin auth token/header here in a real implementation
-    
+
     const result = await OrderController.syncOrderStatusWithPayments();
-    res.json({ 
-      success: true, 
-      message: `Updated ${result.updated} orders. Encountered ${result.errors} errors.` 
+    res.json({
+      success: true,
+      message: `Updated ${result.updated} orders. Encountered ${result.errors} errors.`,
     });
   } catch (error) {
-    console.error("Error in POST /orders/sync-statuses:", error);
-    res.status(500).json({ error: "Failed to sync order statuses" });
+    console.error('Error in POST /orders/sync-statuses:', error);
+    res.status(500).json({ error: 'Failed to sync order statuses' });
   }
 });
 
@@ -421,7 +415,7 @@ router.post("/sync-statuses", async (req: Request, res: Response) => {
  *         description: Sales statistics returned
  */
 // Get sales statistics
-router.get("/stats/sales", async (req: Request, res: Response) => {
+router.get('/stats/sales', async (req: Request, res: Response) => {
   try {
     const startDate = req.query.startDate as string | undefined;
     const endDate = req.query.endDate as string | undefined;
@@ -429,8 +423,8 @@ router.get("/stats/sales", async (req: Request, res: Response) => {
     const stats = await OrderController.getSalesStatistics(startDate, endDate);
     res.json(stats);
   } catch (error) {
-    console.error("Error in GET /orders/stats/sales:", error);
-    res.status(500).json({ error: "Failed to retrieve sales statistics" });
+    console.error('Error in GET /orders/stats/sales:', error);
+    res.status(500).json({ error: 'Failed to retrieve sales statistics' });
   }
 });
 

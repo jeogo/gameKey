@@ -43,7 +43,7 @@ export function formatDate(date: Date | string | number): string {
   return dateObj.toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'short',
-    day: 'numeric'
+    day: 'numeric',
   });
 }
 
@@ -56,29 +56,28 @@ export function formatRelativeTime(date: Date | string | number): string {
   const dateObj = typeof date === 'object' ? date : new Date(date);
   const now = new Date();
   const diffMs = now.getTime() - dateObj.getTime();
-  
+
   // Convert to seconds
   const diffSec = Math.floor(diffMs / 1000);
   if (diffSec < 60) return `${diffSec} second${diffSec !== 1 ? 's' : ''} ago`;
-  
+
   // Convert to minutes
   const diffMin = Math.floor(diffSec / 60);
   if (diffMin < 60) return `${diffMin} minute${diffMin !== 1 ? 's' : ''} ago`;
-  
+
   // Convert to hours
   const diffHour = Math.floor(diffMin / 60);
   if (diffHour < 24) return `${diffHour} hour${diffHour !== 1 ? 's' : ''} ago`;
-  
+
   // Convert to days
   const diffDay = Math.floor(diffHour / 24);
   if (diffDay < 30) return `${diffDay} day${diffDay !== 1 ? 's' : ''} ago`;
-  
+
   // Convert to months
   const diffMonth = Math.floor(diffDay / 30);
   if (diffMonth < 12) return `${diffMonth} month${diffMonth !== 1 ? 's' : ''} ago`;
-  
+
   // Convert to years
   const diffYear = Math.floor(diffMonth / 12);
   return `${diffYear} year${diffYear !== 1 ? 's' : ''} ago`;
 }
-
