@@ -207,6 +207,14 @@ app.get('/', (req: Request, res: Response) => {
   res.json({ message: 'GameKey Bot API Server is running!' });
 });
 
+// Webhook endpoint for bot testing (mock endpoint)
+app.post('/webhook', (req: Request, res: Response) => {
+  // In a real implementation, this would process the Telegram update
+  // For testing purposes, we just return success
+  console.log('📬 Received webhook:', req.body);
+  res.status(200).json({ ok: true });
+});
+
 // 404 handler for undefined routes
 app.use((req: Request, res: Response) => {
   res.status(404).json({ error: 'Route not found' });

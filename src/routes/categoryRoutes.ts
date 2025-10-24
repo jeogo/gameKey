@@ -1,5 +1,6 @@
 import express, { Request, Response } from 'express';
 import * as CategoryController from '../controllers/CategoryController';
+import { successResponse, errorResponse } from '../utils/apiValidation';
 
 const router = express.Router();
 
@@ -40,10 +41,10 @@ const router = express.Router();
 router.get('/', async (_req: Request, res: Response) => {
   try {
     const categories = await CategoryController.getAllCategories();
-    res.json(categories);
+    res.json(successResponse(categories));
   } catch (error) {
     console.error('Error in GET /categories:', error);
-    res.status(500).json({ error: 'Failed to retrieve categories' });
+    res.status(500).json(errorResponse('Failed to retrieve categories', 'FETCH_ERROR'));
   }
 });
 
@@ -68,13 +69,13 @@ router.get('/:id', async (req: Request, res: Response): Promise<any> => {
     const category = await CategoryController.getCategoryById(id);
 
     if (!category) {
-      return res.status(404).json({ error: 'Category not found' });
+      return res.status(404).json(errorResponse('Category not found', 'CATEGORY_NOT_FOUND'));
     }
 
-    res.json(category);
+    res.json(successResponse(category));
   } catch (error) {
     console.error(`Error in GET /categories/${req.params.id}:`, error);
-    res.status(500).json({ error: 'Failed to retrieve category' });
+    res.status(500).json(errorResponse('Failed to retrieve category', 'FETCH_ERROR'));
   }
 });
 
@@ -108,14 +109,14 @@ router.post('/', async (req: Request, res: Response): Promise<any> => {
     const { name, description } = req.body;
 
     if (!name) {
-      return res.status(400).json({ error: 'Category name is required' });
+      return res.status(400).json(errorResponse('Category name is required', 'MISSING_NAME'));
     }
 
     const newCategory = await CategoryController.createCategory({ name, description });
-    res.status(201).json(newCategory);
+    res.status(201).json(successResponse(newCategory));
   } catch (error) {
     console.error('Error in POST /categories:', error);
-    res.status(500).json({ error: 'Failed to create category' });
+    res.status(500).json(errorResponse('Failed to create category', 'CREATE_ERROR'));
   }
 });
 

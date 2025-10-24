@@ -88,7 +88,7 @@ async function setupDatabase() {
 
     // Get all categories to map names to IDs
     const categoriesResponse = await axios.get(`${API_BASE_URL}/categories`);
-    categoriesResponse.data.forEach(cat => {
+    categoriesResponse.data.data.forEach(cat => {
       categoryIds[cat.name] = cat._id;
     });
 

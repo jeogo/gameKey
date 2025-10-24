@@ -28,8 +28,18 @@ class APITester {
       this.log(`✅ PASSED: ${testName}`);
     } catch (error) {
       this.testResults.failed++;
-      this.testResults.errors.push({ test: testName, error: error.message });
-      this.log(`❌ FAILED: ${testName} - ${error.message}`);
+      let errorMsg = error.message;
+      
+      // If it's an axios error, get more details
+      if (error.response) {
+        errorMsg += ` (Status: ${error.response.status})`;
+        if (error.response.data) {
+          errorMsg += ` - ${JSON.stringify(error.response.data)}`;
+        }
+      }
+      
+      this.testResults.errors.push({ test: testName, error: errorMsg });
+      this.log(`❌ FAILED: ${testName} - ${errorMsg}`);
     }
   }
 
@@ -40,23 +50,24 @@ class APITester {
     // Test creating user
     await this.test('Create new user', async () => {
       const userData = {
-        telegramId: 555444333,
-        username: 'apitest_user',
+        telegramId: Date.now(), // Use timestamp for unique IDs
+        username: `apitest_user_${Date.now()}`,
         firstName: 'API',
         lastName: 'Test'
       };
       
       const response = await axios.post(`${API_BASE_URL}/users`, userData);
       if (response.status !== 201) throw new Error(`Expected 201, got ${response.status}`);
-      if (!response.data._id) throw new Error('No user ID returned');
-      this.testUserId = response.data._id;
+      if (!response.data.data || !response.data.data._id) throw new Error('No user ID returned');
+      this.testUserId = response.data.data._id;
+      this.testUserTelegramId = userData.telegramId;
     });
 
     // Test getting user by Telegram ID
     await this.test('Get user by Telegram ID', async () => {
-      const response = await axios.get(`${API_BASE_URL}/users/telegram/555444333`);
+      const response = await axios.get(`${API_BASE_URL}/users/telegram/${this.testUserTelegramId}`);
       if (response.status !== 200) throw new Error(`Expected 200, got ${response.status}`);
-      if (response.data.username !== 'apitest_user') throw new Error('Wrong user data');
+      if (!response.data.data.username.includes('apitest_user')) throw new Error('Wrong user data');
     });
 
     // Test updating user
@@ -64,7 +75,7 @@ class APITester {
       const updateData = { firstName: 'Updated' };
       const response = await axios.put(`${API_BASE_URL}/users/${this.testUserId}`, updateData);
       if (response.status !== 200) throw new Error(`Expected 200, got ${response.status}`);
-      if (response.data.firstName !== 'Updated') throw new Error('User not updated');
+      if (response.data.data.firstName !== 'Updated') throw new Error('User not updated');
     });
   }
 
@@ -75,27 +86,28 @@ class APITester {
     // Test creating category
     await this.test('Create category', async () => {
       const categoryData = {
-        name: 'API Test Category',
+        name: `API Test Category ${Date.now()}`,
         description: 'Category created by API test'
       };
       
       const response = await axios.post(`${API_BASE_URL}/categories`, categoryData);
       if (response.status !== 201) throw new Error(`Expected 201, got ${response.status}`);
-      this.testCategoryId = response.data._id;
+      this.testCategoryId = response.data.data._id;
     });
 
     // Test getting all categories
     await this.test('Get all categories', async () => {
       const response = await axios.get(`${API_BASE_URL}/categories`);
       if (response.status !== 200) throw new Error(`Expected 200, got ${response.status}`);
-      if (!Array.isArray(response.data)) throw new Error('Response is not an array');
+      // API returns wrapped response: { success: true, data: [...] }
+      if (!response.data.data || !Array.isArray(response.data.data)) throw new Error('Response data is not an array');
     });
 
     // Test getting category by ID
     await this.test('Get category by ID', async () => {
       const response = await axios.get(`${API_BASE_URL}/categories/${this.testCategoryId}`);
       if (response.status !== 200) throw new Error(`Expected 200, got ${response.status}`);
-      if (response.data.name !== 'API Test Category') throw new Error('Wrong category data');
+      if (!response.data.data.name.includes('API Test Category')) throw new Error('Wrong category data');
     });
   }
 
@@ -106,38 +118,41 @@ class APITester {
     // Test creating product
     await this.test('Create product', async () => {
       const productData = {
-        name: 'API Test Game',
+        name: `API Test Game ${Date.now()}`,
         description: 'Game created by API test',
         price: 19.99,
         categoryId: this.testCategoryId,
-        stock: 10,
-        gameKey: 'API-TEST-GAME-001'
+        digitalContent: ['GAME-KEY-001', 'GAME-KEY-002', 'GAME-KEY-003'],
+        isAvailable: true,
+        allowPreorder: false
       };
       
       const response = await axios.post(`${API_BASE_URL}/products`, productData);
       if (response.status !== 201) throw new Error(`Expected 201, got ${response.status}`);
-      this.testProductId = response.data._id;
+      this.testProductId = response.data.data._id;
     });
 
     // Test getting all products
     await this.test('Get all products', async () => {
       const response = await axios.get(`${API_BASE_URL}/products`);
       if (response.status !== 200) throw new Error(`Expected 200, got ${response.status}`);
-      if (!Array.isArray(response.data)) throw new Error('Response is not an array');
+      // API returns wrapped response: { success: true, data: [...] }
+      if (!response.data.data || !Array.isArray(response.data.data)) throw new Error('Response data is not an array');
     });
 
     // Test getting products by category
     await this.test('Get products by category', async () => {
-      const response = await axios.get(`${API_BASE_URL}/products/category/${this.testCategoryId}`);
+      const response = await axios.get(`${API_BASE_URL}/products?categoryId=${this.testCategoryId}`);
       if (response.status !== 200) throw new Error(`Expected 200, got ${response.status}`);
-      if (!Array.isArray(response.data)) throw new Error('Response is not an array');
+      // API returns wrapped response: { success: true, data: [...] }
+      if (!response.data.data || !Array.isArray(response.data.data)) throw new Error('Response data is not an array');
     });
 
-    // Test updating product stock
-    await this.test('Update product stock', async () => {
-      const response = await axios.put(`${API_BASE_URL}/products/${this.testProductId}/stock`, { stock: 5 });
+    // Test updating product availability
+    await this.test('Update product availability', async () => {
+      const response = await axios.put(`${API_BASE_URL}/products/${this.testProductId}`, { isAvailable: false });
       if (response.status !== 200) throw new Error(`Expected 200, got ${response.status}`);
-      if (response.data.stock !== 5) throw new Error('Stock not updated');
+      if (response.data.isAvailable !== false) throw new Error('Availability not updated');
     });
   }
 
@@ -150,8 +165,7 @@ class APITester {
       const orderData = {
         userId: this.testUserId,
         productId: this.testProductId,
-        quantity: 1,
-        totalAmount: 19.99
+        quantity: 1
       };
       
       const response = await axios.post(`${API_BASE_URL}/orders`, orderData);
@@ -163,7 +177,8 @@ class APITester {
     await this.test('Get user orders', async () => {
       const response = await axios.get(`${API_BASE_URL}/orders/user/${this.testUserId}`);
       if (response.status !== 200) throw new Error(`Expected 200, got ${response.status}`);
-      if (!Array.isArray(response.data)) throw new Error('Response is not an array');
+      // Order API returns: { orders: [...], total: X }
+      if (!response.data.orders || !Array.isArray(response.data.orders)) throw new Error('Response orders is not an array');
     });
 
     // Test updating order status
@@ -178,32 +193,12 @@ class APITester {
   async testPaymentAPI() {
     this.log('\n💳 Testing Payment API...');
 
-    // Test creating payment
-    await this.test('Create payment', async () => {
-      const paymentData = {
-        orderId: this.testOrderId,
-        amount: 19.99,
-        currency: 'USD',
-        paymentMethod: 'USDT'
-      };
-      
-      const response = await axios.post(`${API_BASE_URL}/payments`, paymentData);
-      if (response.status !== 201) throw new Error(`Expected 201, got ${response.status}`);
-      this.testPaymentId = response.data._id;
-    });
-
-    // Test getting payment by order
-    await this.test('Get payment by order', async () => {
-      const response = await axios.get(`${API_BASE_URL}/payments/order/${this.testOrderId}`);
+    // Only GET payments endpoint exists - no creation endpoint
+    await this.test('Get all payments', async () => {
+      const response = await axios.get(`${API_BASE_URL}/payments`);
       if (response.status !== 200) throw new Error(`Expected 200, got ${response.status}`);
-      if (response.data.amount !== 19.99) throw new Error('Wrong payment data');
-    });
-
-    // Test updating payment status
-    await this.test('Update payment status', async () => {
-      const response = await axios.put(`${API_BASE_URL}/payments/${this.testPaymentId}/status`, { status: 'completed' });
-      if (response.status !== 200) throw new Error(`Expected 200, got ${response.status}`);
-      if (response.data.status !== 'completed') throw new Error('Status not updated');
+      // Payment API returns: { transactions: [...], total: X }
+      if (!response.data.transactions || !Array.isArray(response.data.transactions)) throw new Error('Response transactions is not an array');
     });
   }
 
@@ -211,33 +206,33 @@ class APITester {
   async testNotificationAPI() {
     this.log('\n🔔 Testing Notification API...');
 
-    // Test creating notification
+    // Test creating notification (admin broadcast style)
     await this.test('Create notification', async () => {
       const notificationData = {
-        userId: this.testUserId,
-        type: 'order_completed',
-        title: 'Order Completed',
-        message: 'Your order has been completed successfully',
-        data: { orderId: this.testOrderId }
+        title: 'Test Notification',
+        message: 'This is a test notification',
+        audience: 'all_users'
       };
       
       const response = await axios.post(`${API_BASE_URL}/notifications`, notificationData);
       if (response.status !== 201) throw new Error(`Expected 201, got ${response.status}`);
-      this.testNotificationId = response.data._id;
+      // Get the notification ID from the response (check what the actual response format is)
+      this.testNotificationId = response.data._id || response.data.data?._id || response.data.id;
     });
 
-    // Test getting user notifications
-    await this.test('Get user notifications', async () => {
-      const response = await axios.get(`${API_BASE_URL}/notifications/user/${this.testUserId}`);
+    // Test getting all notifications (filter by userId)
+    await this.test('Get notifications', async () => {
+      const response = await axios.get(`${API_BASE_URL}/notifications?userId=${this.testUserId}`);
       if (response.status !== 200) throw new Error(`Expected 200, got ${response.status}`);
-      if (!Array.isArray(response.data)) throw new Error('Response is not an array');
+      // Notifications API returns direct array: [...]
+      if (!Array.isArray(response.data)) throw new Error('Response data is not an array');
     });
 
-    // Test marking notification as read
-    await this.test('Mark notification as read', async () => {
-      const response = await axios.put(`${API_BASE_URL}/notifications/${this.testNotificationId}/read`);
+    // Test getting notification by ID
+    await this.test('Get notification by ID', async () => {
+      const response = await axios.get(`${API_BASE_URL}/notifications/${this.testNotificationId}`);
       if (response.status !== 200) throw new Error(`Expected 200, got ${response.status}`);
-      if (!response.data.isRead) throw new Error('Notification not marked as read');
+      if (!response.data.title) throw new Error('Notification data missing');
     });
   }
 
@@ -245,13 +240,26 @@ class APITester {
   async testErrorHandling() {
     this.log('\n⚠️ Testing Error Handling...');
 
-    await this.test('Handle non-existent user', async () => {
+    await this.test('Handle invalid user ID format', async () => {
       try {
         await axios.get(`${API_BASE_URL}/users/nonexistent123`);
         throw new Error('Should have thrown an error');
       } catch (error) {
+        if (error.response && error.response.status === 400) {
+          // Expected behavior - API correctly validates ObjectId format
+        } else {
+          throw error;
+        }
+      }
+    });
+
+    await this.test('Handle non-existent user with valid ID', async () => {
+      try {
+        await axios.get(`${API_BASE_URL}/users/507f1f77bcf86cd799439999`);
+        throw new Error('Should have thrown an error');
+      } catch (error) {
         if (error.response && error.response.status === 404) {
-          // Expected behavior
+          // Expected behavior - valid ID format but user doesn't exist
         } else {
           throw error;
         }

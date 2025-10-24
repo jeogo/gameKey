@@ -35,24 +35,17 @@ const router = express.Router();
  *         content:
  *           application/json:
  *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                 data:
- *                   type: array
- *                   items:
- *                     $ref: '#/components/schemas/Notification'
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Notification'
  *             example:
- *               success: true
- *               data:
- *                 - _id: "507f1f77bcf86cd799439020"
- *                   userId: "507f1f77bcf86cd799439011"
- *                   type: "order"
- *                   title: "Order Delivered"
- *                   message: "Your Steam Gift Card has been delivered!"
- *                   isRead: false
- *                   createdAt: "2025-10-02T12:30:00Z"
+ *               - _id: "507f1f77bcf86cd799439020"
+ *                 userId: "507f1f77bcf86cd799439011"
+ *                 type: "order"
+ *                 title: "Order Delivered"
+ *                 message: "Your Steam Gift Card has been delivered!"
+ *                 isRead: false
+ *                 createdAt: "2025-10-02T12:30:00Z"
  */
 router.get('/', async (_req: Request, res: Response) => {
   try {

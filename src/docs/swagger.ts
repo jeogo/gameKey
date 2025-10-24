@@ -140,13 +140,18 @@ const swaggerOptions = {
               description: 'Digital content (keys, emails, accounts)',
               example: ['email1@example.com:password1', 'STEAM-XXXX-YYYY-ZZZZ'],
             },
+            allowPreorder: {
+              type: 'boolean',
+              description: 'Whether to allow preorders when stock is empty',
+              example: false,
+            },
             createdAt: {
               type: 'string',
               format: 'date-time',
               description: 'Creation timestamp',
             },
           },
-          required: ['name', 'price', 'categoryId', 'isAvailable', 'digitalContent'],
+          required: ['name', 'price', 'categoryId', 'isAvailable', 'digitalContent', 'allowPreorder'],
         },
 
         // Order Models

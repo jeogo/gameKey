@@ -294,4 +294,116 @@ router.post(
   }
 );
 
+/**
+ * @swagger
+ * /users/telegram/{telegramId}:
+ *   get:
+ *     tags: [Users]
+ *     summary: Get user by Telegram ID
+ *     description: Retrieve a specific user by their Telegram ID
+ *     parameters:
+ *       - name: telegramId
+ *         in: path
+ *         required: true
+ *         description: Telegram user ID
+ *         schema:
+ *           type: number
+ *     responses:
+ *       200:
+ *         description: User found successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
+ */
+router.get(
+  '/telegram/:telegramId',
+  async (req: Request, res: Response): Promise<any> => {
+    try {
+      const telegramId = parseInt(req.params.telegramId);
+      
+      if (isNaN(telegramId)) {
+        return res.status(400).json(errorResponse('Invalid Telegram ID', 'INVALID_TELEGRAM_ID'));
+      }
+
+      const user = await UserController.getUserById(telegramId);
+
+      if (!user) {
+        return res.status(404).json(errorResponse('User not found', 'USER_NOT_FOUND'));
+      }
+
+      res.json(successResponse(user));
+    } catch (error) {
+      console.error(`Error getting user by Telegram ID ${req.params.telegramId}:`, error);
+      res.status(500).json(errorResponse('Failed to retrieve user', 'FETCH_ERROR'));
+    }
+  }
+);
+
+/**
+ * @swagger
+ * /users:
+ *   post:
+ *     tags: [Users]
+ *     summary: Create a new user
+ *     description: Create a new user account
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - telegramId
+ *             properties:
+ *               telegramId:
+ *                 type: number
+ *                 description: Telegram user ID
+ *               username:
+ *                 type: string
+ *                 description: Username
+ *               firstName:
+ *                 type: string
+ *                 description: First name
+ *               lastName:
+ *                 type: string
+ *                 description: Last name
+ *     responses:
+ *       201:
+ *         description: User created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ *       400:
+ *         $ref: '#/components/responses/BadRequest'
+ */
+router.post(
+  '/',
+  async (req: Request, res: Response): Promise<any> => {
+    try {
+      const { telegramId, username, firstName, lastName } = req.body;
+
+      if (!telegramId || typeof telegramId !== 'number') {
+        return res.status(400).json(errorResponse('Telegram ID is required and must be a number', 'INVALID_TELEGRAM_ID'));
+      }
+
+      const userData = {
+        telegramId,
+        username: username || '',
+        firstName: firstName || '',
+        lastName: lastName || ''
+      };
+
+      const user = await UserController.createUser(userData);
+      res.status(201).json(successResponse(user));
+    } catch (error) {
+      console.error('Error creating user:', error);
+      res.status(500).json(errorResponse('Failed to create user', 'CREATE_USER_ERROR'));
+    }
+  }
+);
+
 export default router;

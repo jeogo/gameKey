@@ -39,14 +39,15 @@ const router = express.Router();
  *         content:
  *           application/json:
  *             schema:
- *               allOf:
- *                 - $ref: '#/components/schemas/PaginatedResponse'
- *                 - type: object
- *                   properties:
- *                     data:
- *                       type: array
- *                       items:
- *                         $ref: '#/components/schemas/PaymentTransaction'
+ *               type: object
+ *               properties:
+ *                 transactions:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/PaymentTransaction'
+ *                 total:
+ *                   type: number
+ *                   description: Total number of transactions
  */
 router.get('/', async (req: Request, res: Response) => {
   try {

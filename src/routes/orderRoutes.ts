@@ -106,7 +106,19 @@ router.get('/', async (req: Request, res: Response) => {
  *           example: 20
  *     responses:
  *       200:
- *         description: Orders retrieved
+ *         description: Orders retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 orders:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Order'
+ *                 total:
+ *                   type: number
+ *                   description: Total number of orders for this user
  */
 // Get orders for a specific user
 router.get('/user/:userId', async (req: Request, res: Response) => {
